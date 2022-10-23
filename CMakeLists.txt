@@ -10,8 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CTest)
 enable_testing()
 
-include_directories("C:/VulkanSDK/1.3.224.1/Include")
-link_directories("C:/VulkanSDK/1.3.224.1/Lib")
+find_package(Vulkan REQUIRED)
 
 add_library(tiny-vulkan tiny-vulkan.cpp)
 
@@ -21,8 +20,7 @@ add_executable(draw-triangle draw-triangle.cpp)
 add_subdirectory(env-setup)
 
 
-
-target_link_libraries(tiny-vulkan PUBLIC glfw glm vulkan-1)
+target_link_libraries(tiny-vulkan PUBLIC glfw glm Vulkan::Vulkan)
 target_link_libraries(draw-triangle PRIVATE tiny-vulkan)
 
 

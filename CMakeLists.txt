@@ -12,3 +12,7 @@ set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
 
 add_executable(draw-triangle draw-triangle.cpp)
+ 
+add_subdirectory(env-setup)
+
+target_link_libraries(draw-triangle glfw glm)

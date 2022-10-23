@@ -13,7 +13,7 @@ int main(){
     uint32_t extensionCount {};
     vkEnumerateInstanceExtensionProperties(nullptr,&extensionCount,nullptr);
 
-    std::cout << std::format ("{} extension supported.\n");
+    std::cout << std::format ("{} extension supported.\n",extensionCount);
 
     glm::mat4 matrix;
     glm::vec4 vec;

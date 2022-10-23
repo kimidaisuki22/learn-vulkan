@@ -15,4 +15,9 @@ add_executable(draw-triangle draw-triangle.cpp)
  
 add_subdirectory(env-setup)
 
-target_link_libraries(draw-triangle glfw glm)
+include_directories("C:/VulkanSDK/1.3.224.1/Include")
+link_directories("C:/VulkanSDK/1.3.224.1/Lib")
+
+
+target_link_libraries(tiny-vulkan PUBLIC glfw glm)
+target_link_libraries(draw-triangle PRIVATE tiny-vulkan)

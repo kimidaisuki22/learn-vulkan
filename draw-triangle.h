@@ -231,6 +231,9 @@ class HelloTriangleApp{
         const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
         void* user_data
     ){
+        if(message_severiry <= VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT){
+            return VK_FALSE;
+        }
         std::cerr<< "validation layer: " << callback_data->pMessage <<"\n";
         auto vk_objects = std::span{callback_data->pObjects,callback_data->objectCount};
 

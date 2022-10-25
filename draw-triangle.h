@@ -1,6 +1,7 @@
 #pragma once
 #include "GLFW/glfw3.h"
 #include "tiny-vulkan.h"
+#include <corecrt_startup.h>
 #include <stdint.h>
 #include <string>
 #include <optional>
@@ -92,6 +93,7 @@ class HelloTriangleApp{
         setup_debug_messenger();
 
         pick_physical_device();
+        create_logical_device();
     }
     void main_loop(){
         while(!glfwWindowShouldClose(window_)){
@@ -99,6 +101,8 @@ class HelloTriangleApp{
         }
     }
     void clean_up(){
+        vkDestroyDevice(device_,nullptr);
+
         if constexpr (ENABLE_VALIDATION_LAYERS){
             DestroyDebugUtilsMessengerEXT(instance_,debug_messenger_,nullptr);
         }
@@ -266,6 +270,31 @@ class HelloTriangleApp{
             throw std::runtime_error {"No suitable GPU found."};
         }
     }
+    void create_logical_device(){
+        Queue_family_indices indices = find_queue_families(physical_device_);
+
+        VkDeviceQueueCreateInfo  queue_create_info{};
+
+        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_info.queueFamilyIndex = indices.graphics_family.value();
+        queue_create_info.queueCount = 1;
+        queue_create_info.pQueuePriorities = &queue_priority_;
+
+        VkPhysicalDeviceFeatures device_features{};
+        VkDeviceCreateInfo create_info{};
+        
+        create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        create_info.pQueueCreateInfos = & queue_create_info;
+        create_info.queueCreateInfoCount = 1;
+
+        create_info.pEnabledFeatures = & device_features;
+
+        if(vkCreateDevice(physical_device_,&create_info,nullptr,&device_) != VK_SUCCESS){
+            throw  std::runtime_error {"failed to create logical device."};
+        }
+
+        vkGetDeviceQueue(device_, indices.graphics_family.value(), 0,&graphics_queue_); 
+    }
 
     bool is_device_suitable(VkPhysicalDevice device){
         VkPhysicalDeviceProperties device_properties{};
@@ -307,7 +336,10 @@ class HelloTriangleApp{
     VkDebugUtilsMessengerEXT debug_messenger_;
 
     VkPhysicalDevice physical_device_ {VK_NULL_HANDLE};
+    VkDevice device_{};
+    VkQueue graphics_queue_{};
 
     uint32_t width_{};
     uint32_t height_{};
+    const float queue_priority_ = 1.0f;
 };

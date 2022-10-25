@@ -14,6 +14,7 @@
 #include <format>
 #include <vector>
 #include <span>
+#include <unordered_set>
 
 constexpr bool ENABLE_VALIDATION_LAYERS =
 #ifdef NDEBUG
@@ -24,9 +25,10 @@ true;
 
 struct Queue_family_indices{
     std::optional <uint32_t> graphics_family;
+    std::optional<uint32_t> present_family;
 
     bool is_complete()const{
-        return graphics_family.has_value();
+        return graphics_family.has_value() && present_family.has_value();
     }
 };
 
@@ -92,6 +94,8 @@ class HelloTriangleApp{
         create_instance();
         setup_debug_messenger();
 
+        create_surface();
+
         pick_physical_device();
         create_logical_device();
     }
@@ -111,6 +115,7 @@ class HelloTriangleApp{
             glfwDestroyWindow(window_);
             window_ = nullptr;
         }
+        vkDestroySurfaceKHR(instance_,surface_,nullptr);
         if(instance_){
             vkDestroyInstance(instance_,nullptr);
             instance_ = nullptr;
@@ -275,20 +280,26 @@ class HelloTriangleApp{
     }
     void create_logical_device(){
         Queue_family_indices indices = find_queue_families(physical_device_);
-
-        VkDeviceQueueCreateInfo  queue_create_info{};
-
-        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queue_create_info.queueFamilyIndex = indices.graphics_family.value();
-        queue_create_info.queueCount = 1;
-        queue_create_info.pQueuePriorities = &queue_priority_;
+        std::vector<VkDeviceQueueCreateInfo> queue_infos;
+        std::unordered_set<uint32_t> unique_queue_families {
+            indices.graphics_family.value(),
+            indices.present_family.value()
+        };
+        for(auto queue_family: unique_queue_families){
+            VkDeviceQueueCreateInfo  queue_create_info{};
+            queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queue_create_info.queueFamilyIndex = queue_family ;
+            queue_create_info.queueCount = 1;
+            queue_create_info.pQueuePriorities = &queue_priority_;
+            queue_infos.push_back(queue_create_info);
+        }
 
         VkPhysicalDeviceFeatures device_features{};
         VkDeviceCreateInfo create_info{};
         
         create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        create_info.pQueueCreateInfos = & queue_create_info;
-        create_info.queueCreateInfoCount = 1;
+        create_info.pQueueCreateInfos = queue_infos.data() ;
+        create_info.queueCreateInfoCount = queue_infos.size();
 
         create_info.pEnabledFeatures = & device_features;
 
@@ -297,6 +308,8 @@ class HelloTriangleApp{
         }
 
         vkGetDeviceQueue(device_, indices.graphics_family.value(), 0,&graphics_queue_); 
+        vkGetDeviceQueue(device_, indices.present_family.value(), 0,&present_queue_); 
+
     }
 
     bool is_device_suitable(VkPhysicalDevice device){
@@ -320,8 +333,13 @@ class HelloTriangleApp{
 
         for(int i{};const auto & queue_family : queue_families){
             if(queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT){
-                indices.graphics_family = i;
+                    indices.graphics_family = i;
             }
+                VkBool32 present_support = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(device,i,surface_,& present_support);
+                if(present_support){
+                    indices.present_family = i;
+                }
 
             if(indices.is_complete()){
                 break;
@@ -332,15 +350,23 @@ class HelloTriangleApp{
         return indices;
     }
 
+    void create_surface(){
+        if(glfwCreateWindowSurface(instance_,window_,nullptr,&surface_)!=VK_SUCCESS){
+            throw std::runtime_error{"failed to create window surface!"};
+        }
+    }
+
     private:
     std::string title_;
     GLFWwindow* window_{};
     VkInstance instance_{};
+    VkSurfaceKHR surface_{};
     VkDebugUtilsMessengerEXT debug_messenger_;
 
     VkPhysicalDevice physical_device_ {VK_NULL_HANDLE};
     VkDevice device_{};
     VkQueue graphics_queue_{};
+    VkQueue present_queue_{};
 
     uint32_t width_{};
     uint32_t height_{};

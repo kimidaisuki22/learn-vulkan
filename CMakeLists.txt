@@ -21,7 +21,11 @@ add_subdirectory(env-setup)
 
 
 target_link_libraries(tiny-vulkan PUBLIC glfw glm Vulkan::Vulkan)
+
 target_link_libraries(draw-triangle PRIVATE tiny-vulkan)
+if(true) # TODO:Just use fmt when std::format is not avaliable
+target_link_libraries(draw-triangle PRIVATE fmt)
+endif()
 
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

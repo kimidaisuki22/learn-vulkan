@@ -19,7 +19,7 @@ add_library(tiny-vulkan tiny-vulkan.cpp)
 
 add_executable(draw-triangle draw-triangle.cpp)
 
-target_include_directories(draw-triangle PUBLIC /usr/local/include)
+
 
 add_subdirectory(env-setup)
 
@@ -28,7 +28,7 @@ target_link_libraries(tiny-vulkan PUBLIC glfw glm Vulkan::Vulkan)
 
 target_link_libraries(draw-triangle PRIVATE tiny-vulkan)
 if(true) # TODO:Just use fmt when std::format is not avaliable
-target_link_libraries(draw-triangle PRIVATE fmt)
+target_link_libraries(draw-triangle PRIVATE fmt::fmt)
 endif()
 
 

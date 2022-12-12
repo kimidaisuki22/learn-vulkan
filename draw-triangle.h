@@ -112,6 +112,7 @@ class HelloTriangleApp{
         create_logical_device();
         create_swap_chain();
         create_image_views();
+        create_graphics_pipeline();
     }
     void main_loop(){
         while(!glfwWindowShouldClose(window_)){
@@ -559,6 +560,9 @@ class HelloTriangleApp{
                 throw std::runtime_error{"failed to create image view."};
             }
         }
+    }
+    void create_graphics_pipeline(){
+
     }
     private:
     std::string title_;

@@ -18,14 +18,15 @@
 #include <vector>
 #include <span>
 #include <unordered_set>
+#include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 #include <set>
 #include <algorithm>
 
 constexpr bool ENABLE_VALIDATION_LAYERS =
-#ifdef NDEBUG
+#if defined(NDEBUG) // || defined (__APPLE__)
 false;
-#else 
+#else
 true;
 #endif
 
@@ -68,7 +69,7 @@ inline void DestroyDebugUtilsMessengerEXT(
     } else{
         throw std::runtime_error ("can't find extension");
     }
-    
+
 }
 
 class HelloTriangleApp{
@@ -88,13 +89,18 @@ class HelloTriangleApp{
 
     private:
     void init_window(){
-        glfwInit();
+        if(glfwInit() !=GLFW_TRUE){
+        throw            std::runtime_error{"failed to init glfw."};
+        }
 
         // Do not create OpenGL context.
         glfwWindowHint(GLFW_CLIENT_API,GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE,GLFW_FALSE);
 
         window_ = glfwCreateWindow(width_,height_,title_.c_str() ,nullptr,nullptr);
+        if(!window_){
+            throw std::runtime_error("failed to create window");
+        }
     }
     void init_vulkan(){
         create_instance();
@@ -110,7 +116,7 @@ class HelloTriangleApp{
     void main_loop(){
         while(!glfwWindowShouldClose(window_)){
             glfwPollEvents();
-            
+
         }
     }
     void clean_up(){
@@ -139,12 +145,18 @@ class HelloTriangleApp{
     std::vector<const char*> get_required_extensions(){
         uint32_t glfw_extensions_count {};
         const char**  glfw_exntensions = glfwGetRequiredInstanceExtensions(&glfw_extensions_count);
+        if(glfw_exntensions == nullptr){
+            throw std::runtime_error{"vulkan is not available on this machine."};
+        }
 
         std::vector<const char*> extensions{glfw_exntensions,glfw_exntensions+glfw_extensions_count};
 
         if constexpr(ENABLE_VALIDATION_LAYERS){
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
+        #ifdef __APPLE__
+            extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        #endif
 
         return extensions;
     }
@@ -175,7 +187,7 @@ class HelloTriangleApp{
 
         VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
         if constexpr(ENABLE_VALIDATION_LAYERS){
-            
+
             create_info.enabledLayerCount = validation_layer_name_pointers.size();
             create_info.ppEnabledLayerNames = validation_layer_name_pointers.data();
 
@@ -185,8 +197,13 @@ class HelloTriangleApp{
             create_info.enabledLayerCount = 0;
             create_info.pNext = nullptr;
         }
+        #ifdef __APPLE__
+        create_info.flags |=VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        #endif
 
-        if(vkCreateInstance(&create_info,nullptr,&instance_) != VK_SUCCESS){
+        if(auto result = vkCreateInstance(&create_info,nullptr,&instance_) ;result!= VK_SUCCESS){
+            auto s= string_VkResult(result);
+            std::cout << s<<"\n";
             throw std::runtime_error {"failed to create vulkan instance."};
         }
 
@@ -196,7 +213,7 @@ class HelloTriangleApp{
                 std::cout << std::format("extension {}: {}\n",i,extensions[i]);
             }
         }
- 
+
     }
 
     void check_exntesions(){
@@ -230,12 +247,12 @@ class HelloTriangleApp{
     }
     void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& create_info){
        create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-            create_info.messageSeverity = 
+            create_info.messageSeverity =
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT|
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT|
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 
-            create_info.messageType = 
+            create_info.messageType =
                 VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT|
                 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT|
                 VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -262,7 +279,7 @@ class HelloTriangleApp{
     void setup_debug_messenger(){
         if constexpr(ENABLE_VALIDATION_LAYERS){
             VkDebugUtilsMessengerCreateInfoEXT create_info{};
-            populate_debug_messenger_create_info(create_info);            
+            populate_debug_messenger_create_info(create_info);
 
             if(CreateDebugUtilsMessengerEXT(instance_,&create_info,nullptr,&debug_messenger_)!= VK_SUCCESS){
                 throw std::runtime_error{"Failed to set up debug messenger"};
@@ -310,7 +327,7 @@ class HelloTriangleApp{
 
         VkPhysicalDeviceFeatures device_features{};
         VkDeviceCreateInfo create_info{};
-        
+
         create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         create_info.pQueueCreateInfos = queue_infos.data() ;
         create_info.queueCreateInfoCount = queue_infos.size();
@@ -324,8 +341,8 @@ class HelloTriangleApp{
             throw  std::runtime_error {"failed to create logical device."};
         }
 
-        vkGetDeviceQueue(device_, indices.graphics_family.value(), 0,&graphics_queue_); 
-        vkGetDeviceQueue(device_, indices.present_family.value(), 0,&present_queue_); 
+        vkGetDeviceQueue(device_, indices.graphics_family.value(), 0,&graphics_queue_);
+        vkGetDeviceQueue(device_, indices.present_family.value(), 0,&present_queue_);
 
     }
 
@@ -335,7 +352,7 @@ class HelloTriangleApp{
 
         VkPhysicalDeviceFeatures  device_feature{};
         vkGetPhysicalDeviceFeatures(device,&device_feature);
-        
+
         const bool extensions_supported = check_extension_support(device);
         bool swap_chain_adequate {false};
 
@@ -352,7 +369,7 @@ class HelloTriangleApp{
 
         uint32_t queue_family_count {};
         vkGetPhysicalDeviceQueueFamilyProperties(device,&queue_family_count,nullptr);
-        
+
         std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(device,&queue_family_count, queue_families.data());
 
@@ -414,9 +431,9 @@ class HelloTriangleApp{
             details.present_modes_.resize(present_mode_count);
             vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &present_mode_count,details.present_modes_.data());
         }
-        
 
-        
+
+
         return details;
     }
     VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats){
@@ -454,7 +471,7 @@ class HelloTriangleApp{
         auto & max_extent = capabilities.maxImageExtent;
         actual_extent.height = std::clamp(actual_extent.height,min_extent.height,max_extent.height);
         actual_extent.width = std::clamp(actual_extent.width,min_extent.width,max_extent.width);
-        
+
         return actual_extent;
     }
     void create_swap_chain(){
@@ -497,9 +514,9 @@ class HelloTriangleApp{
         }
 
         create_info.preTransform = swap_chain_support.capabilities_.currentTransform;
-        
+
         //see: https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
-        create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; 
+        create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         create_info.presentMode = present_mode;
         create_info.clipped = VK_TRUE;
         create_info.oldSwapchain = VK_NULL_HANDLE;
@@ -518,7 +535,7 @@ class HelloTriangleApp{
 
     void create_image_views(){
         swap_chain_image_views_.resize(swap_chain_images_.size());
-        
+
         for(size_t i = 0 ; i < swap_chain_image_views_.size();i++){
             VkImageViewCreateInfo create_info{};
             create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -537,7 +554,7 @@ class HelloTriangleApp{
             create_info.subresourceRange.levelCount = 1 ;
             create_info.subresourceRange.baseArrayLayer = 0 ;
             create_info.subresourceRange.layerCount = 1 ;
-        
+
             if(vkCreateImageView(device_, &create_info, nullptr, swap_chain_image_views_.data()+ i) != VK_SUCCESS){
                 throw std::runtime_error{"failed to create image view."};
             }

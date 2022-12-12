@@ -5,6 +5,8 @@
 // #include <corecrt_startup.h>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
+#include <ios>
 #include <limits>
 #include <stdint.h>
 #include <string>
@@ -562,7 +564,60 @@ class HelloTriangleApp{
         }
     }
     void create_graphics_pipeline(){
+        auto vert_shader_code = read_file("shaders/vert.spv");
+        auto frag_shader_code = read_file("shaders/frag.spv");
 
+        auto vert_shader_module = create_shader_module(vert_shader_code);
+        auto frag_shader_module = create_shader_module(frag_shader_code);
+
+
+        VkPipelineShaderStageCreateInfo vert_shader_create_info{};
+        vert_shader_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vert_shader_create_info.stage= VK_SHADER_STAGE_VERTEX_BIT;
+
+        vert_shader_create_info.module = vert_shader_module;
+        vert_shader_create_info.pName = "main"; // the function to invoke. aka entrypoint.
+
+        VkPipelineShaderStageCreateInfo frag_shader_create_info{};
+        frag_shader_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        frag_shader_create_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        vert_shader_create_info.module =frag_shader_module;
+        vert_shader_create_info.pName = "main";
+
+        VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_create_info,frag_shader_create_info};
+
+        
+        vkDestroyShaderModule(device_, vert_shader_module, nullptr);
+        vkDestroyShaderModule(device_, frag_shader_module, nullptr);
+    }
+    static std::vector<char> read_file(std::string_view filename){
+        std::ifstream file(static_cast<std::string>(filename),std::ios::ate|std::ios::binary);
+
+        if(!file.is_open()){
+            throw std::runtime_error{std::format("can't open file {}",filename)};
+        }
+        size_t total_size  = file.tellg();
+        std::vector<char> buffer(total_size);
+
+        file.seekg(0);
+        file.read(buffer.data(), total_size);
+        file.close();
+
+        return buffer;
+    }
+    VkShaderModule create_shader_module(const std::vector<char>& code){
+        VkShaderModuleCreateInfo create_info{};
+        create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        create_info.codeSize = code.size();
+        create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+        VkShaderModule module{};
+        if(vkCreateShaderModule(device_, &create_info, nullptr, &module)!=VK_SUCCESS){
+            throw std::runtime_error{"Create shader module failed."};
+        }
+
+        return module;
     }
     private:
     std::string title_;

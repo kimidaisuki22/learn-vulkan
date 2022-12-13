@@ -117,6 +117,8 @@ class HelloTriangleApp{
         create_render_pass();
         create_graphics_pipeline();
         create_frame_buffers();
+        create_command_pool();
+        create_command_buffer();
     }
     void main_loop(){
         while(!glfwWindowShouldClose(window_)){
@@ -125,6 +127,7 @@ class HelloTriangleApp{
         }
     }
     void clean_up(){
+        vkDestroyCommandPool(device_, command_pool_, nullptr);
         for(auto framebuffer: swap_chain_frame_buffers_){
             vkDestroyFramebuffer(device_, framebuffer, nullptr);
         }
@@ -805,6 +808,81 @@ class HelloTriangleApp{
             }
         }
     }
+    void create_command_pool(){
+        Queue_family_indices queue_family_indices = find_queue_families(physical_device_);
+
+        VkCommandPoolCreateInfo pool_info{};
+        pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
+
+        if(vkCreateCommandPool(device_, &pool_info, nullptr, &command_pool_)!=VK_SUCCESS){
+            throw std::runtime_error{"failed to create command pool."};
+        }
+    }
+    void create_command_buffer(){
+        VkCommandBufferAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        alloc_info.commandPool = command_pool_;
+        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        alloc_info.commandBufferCount = 1;
+
+        if(vkAllocateCommandBuffers(device_, &alloc_info, &command_buffer_)!=VK_SUCCESS){
+            throw std::runtime_error{"failed to allocate command buffer."};
+        }
+    }
+
+    void record_command_buffer(VkCommandBuffer command_buffer,uint32_t image_index){
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType =VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = 0;
+        begin_info.pInheritanceInfo = nullptr;
+
+        if(vkBeginCommandBuffer(command_buffer, &begin_info)!=VK_SUCCESS){
+            throw std::runtime_error{"failed to begin record commmand buffer."};
+        }
+
+        // Starting a render pass
+        VkRenderPassBeginInfo render_pass_info{};
+        render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        render_pass_info.renderPass = render_pass_;
+        render_pass_info.framebuffer = swap_chain_frame_buffers_[image_index];
+
+        render_pass_info.renderArea.offset = {0,0};
+        render_pass_info.renderArea.extent = swap_chain_extent_;
+
+        VkClearValue clear_color = {{{0.3f,0.3f,0.3f,0.1f,}}};
+        render_pass_info.clearValueCount = 1;
+        render_pass_info.pClearValues = &clear_color;
+
+        vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Basic drawing commands
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline_);
+
+        VkViewport viewport{};
+        viewport.x = 0;
+        viewport.y = 0;
+        viewport.width = static_cast<float>(swap_chain_extent_.width);
+        viewport.height = static_cast<float>(swap_chain_extent_.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = {0,0};
+        scissor.extent = swap_chain_extent_;
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+        vkCmdDraw(command_buffer, 3, 1, 0, 0);
+
+        // Finishing up
+        vkCmdEndRenderPass(command_buffer);
+        if(vkEndCommandBuffer(command_buffer)!=VK_SUCCESS){
+            throw  std::runtime_error{"failed to record command buffer."};
+        }
+
+    }
 
     static std::vector<char> read_file(std::string_view filename){
         std::ifstream file(static_cast<std::string>(filename),std::ios::ate|std::ios::binary);
@@ -861,4 +939,6 @@ class HelloTriangleApp{
     VkPipeline graphics_pipeline_;
 
     std::vector<VkFramebuffer> swap_chain_frame_buffers_;
+    VkCommandPool command_pool_;
+    VkCommandBuffer command_buffer_;
 };

@@ -116,6 +116,7 @@ class HelloTriangleApp{
         create_image_views();
         create_render_pass();
         create_graphics_pipeline();
+        create_frame_buffers();
     }
     void main_loop(){
         while(!glfwWindowShouldClose(window_)){
@@ -124,6 +125,10 @@ class HelloTriangleApp{
         }
     }
     void clean_up(){
+        for(auto framebuffer: swap_chain_frame_buffers_){
+            vkDestroyFramebuffer(device_, framebuffer, nullptr);
+        }
+
         vkDestroyPipeline(device_, graphics_pipeline_, nullptr);
         vkDestroyPipelineLayout(device_, pipeline_layout_, nullptr);
         vkDestroyRenderPass(device_, render_pass_, nullptr);
@@ -776,7 +781,29 @@ class HelloTriangleApp{
         if(vkCreateRenderPass(device_, &render_pass_info, nullptr, &render_pass_) != VK_SUCCESS){
             throw std::runtime_error{"failed to create render pass."};
         }
+    }
 
+    void create_frame_buffers(){
+        swap_chain_frame_buffers_.resize(swap_chain_image_views_.size());
+
+        for(size_t i=0 ;i < swap_chain_image_views_.size();i++){
+            VkImageView attachments[] ={
+                swap_chain_image_views_[i]
+            };
+
+            VkFramebufferCreateInfo framebuffer_info{};
+            framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebuffer_info.renderPass = render_pass_;
+            framebuffer_info.attachmentCount = 1;
+            framebuffer_info.pAttachments = attachments;
+            framebuffer_info.width = swap_chain_extent_.width;
+            framebuffer_info.height = swap_chain_extent_.height;
+            framebuffer_info.layers = 1;
+
+            if(vkCreateFramebuffer(device_, &framebuffer_info, nullptr, &swap_chain_frame_buffers_[i])!= VK_SUCCESS){
+                throw std::runtime_error{"failed to create framebuffer."};
+            }
+        }
     }
 
     static std::vector<char> read_file(std::string_view filename){
@@ -832,4 +859,6 @@ class HelloTriangleApp{
     VkRenderPass render_pass_;
     VkPipelineLayout pipeline_layout_;
     VkPipeline graphics_pipeline_;
+
+    std::vector<VkFramebuffer> swap_chain_frame_buffers_;
 };

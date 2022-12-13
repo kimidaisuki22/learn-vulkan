@@ -124,6 +124,7 @@ class HelloTriangleApp{
         }
     }
     void clean_up(){
+        vkDestroyPipeline(device_, graphics_pipeline_, nullptr);
         vkDestroyPipelineLayout(device_, pipeline_layout_, nullptr);
         vkDestroyRenderPass(device_, render_pass_, nullptr);
 
@@ -586,8 +587,8 @@ class HelloTriangleApp{
         frag_shader_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         frag_shader_create_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        vert_shader_create_info.module =frag_shader_module;
-        vert_shader_create_info.pName = "main";
+        frag_shader_create_info.module =frag_shader_module;
+        frag_shader_create_info.pName = "main";
 
         VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_create_info,frag_shader_create_info};
 
@@ -706,7 +707,31 @@ class HelloTriangleApp{
             throw std::runtime_error{"failed to create pipeline layout"};
         }
 
+        VkGraphicsPipelineCreateInfo pipeline_info{};
+        pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipeline_info.stageCount = 2;
+        pipeline_info.pStages = shader_stages;
 
+        pipeline_info.pVertexInputState = &vertex_input_info;
+        pipeline_info.pInputAssemblyState = &input_assembly;
+        pipeline_info.pViewportState = &viewport_state;
+        pipeline_info.pRasterizationState = &rasterizer;
+        pipeline_info.pMultisampleState = &multisampling;
+        pipeline_info.pDepthStencilState = nullptr;
+        pipeline_info.pColorBlendState = &color_blending;
+        pipeline_info.pDynamicState = &dynamic_state;
+
+        pipeline_info.layout = pipeline_layout_;
+
+        pipeline_info.renderPass = render_pass_;
+        pipeline_info.subpass = 0;
+
+        pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
+        pipeline_info.basePipelineIndex = -1;
+
+        if(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline_) != VK_SUCCESS){
+            throw std::runtime_error{"failed to create graphics pipeline."};
+        }
 
 
 
@@ -806,4 +831,5 @@ class HelloTriangleApp{
     VkExtent2D swap_chain_extent_;
     VkRenderPass render_pass_;
     VkPipelineLayout pipeline_layout_;
+    VkPipeline graphics_pipeline_;
 };

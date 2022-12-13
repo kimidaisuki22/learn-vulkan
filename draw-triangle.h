@@ -114,6 +114,7 @@ class HelloTriangleApp{
         create_logical_device();
         create_swap_chain();
         create_image_views();
+        create_render_pass();
         create_graphics_pipeline();
     }
     void main_loop(){
@@ -124,6 +125,7 @@ class HelloTriangleApp{
     }
     void clean_up(){
         vkDestroyPipelineLayout(device_, pipeline_layout_, nullptr);
+        vkDestroyRenderPass(device_, render_pass_, nullptr);
 
         for(auto image_view: swap_chain_image_views_){
             vkDestroyImageView(device_, image_view, nullptr);
@@ -712,6 +714,46 @@ class HelloTriangleApp{
         vkDestroyShaderModule(device_, vert_shader_module, nullptr);
         vkDestroyShaderModule(device_, frag_shader_module, nullptr);
     }
+
+    void create_render_pass(){
+        VkAttachmentDescription color_attachment{};
+        color_attachment.format = swap_chain_image_format_;
+        color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+
+        // color and depth.
+        color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+        color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+        color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        // Subpassese and attachment references
+        VkAttachmentReference color_attachment_ref{};
+        color_attachment_ref.attachment = 0;
+        color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &color_attachment_ref;
+
+        // Render pass
+        VkRenderPassCreateInfo render_pass_info{};
+        render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        render_pass_info.attachmentCount = 1;
+        render_pass_info.pAttachments = &color_attachment;
+        render_pass_info.subpassCount = 1;
+        render_pass_info.pSubpasses = &subpass;
+
+        if(vkCreateRenderPass(device_, &render_pass_info, nullptr, &render_pass_) != VK_SUCCESS){
+            throw std::runtime_error{"failed to create render pass."};
+        }
+
+    }
+
     static std::vector<char> read_file(std::string_view filename){
         std::ifstream file(static_cast<std::string>(filename),std::ios::ate|std::ios::binary);
 
@@ -762,5 +804,6 @@ class HelloTriangleApp{
     std::vector<VkImageView> swap_chain_image_views_;
     VkFormat swap_chain_image_format_;
     VkExtent2D swap_chain_extent_;
+    VkRenderPass render_pass_;
     VkPipelineLayout pipeline_layout_;
 };

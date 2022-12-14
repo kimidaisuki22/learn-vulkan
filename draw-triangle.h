@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <sys/types.h>
+#include <vcruntime_string.h>
 #include <vector>
 #include <span>
 #include <unordered_set>
@@ -78,7 +79,7 @@ struct Vertex{
 const std::vector<Vertex> vertices{
     {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
     {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
 };
 
 const std::vector<const char*> validation_layer_name_pointers{
@@ -164,6 +165,7 @@ class HelloTriangleApp{
         create_graphics_pipeline();
         create_frame_buffers();
         create_command_pool();
+        create_vertex_buffer();
         create_command_buffers();
         create_sync_objects();
     }
@@ -177,6 +179,9 @@ class HelloTriangleApp{
     }
     void cleanup(){
         cleanup_swap_chain();
+
+        vkDestroyBuffer(device_, vertex_buffer_, nullptr);
+        vkFreeMemory(device_, vertex_buffer_memory_, nullptr);
         for(size_t i=0;i<MAX_FRAMES_IN_FLIGHT;i++){
             vkDestroyFence(device_, in_flight_fences_[i], nullptr);
             vkDestroySemaphore(device_, render_finish_semaphores_[i], nullptr);
@@ -962,7 +967,13 @@ class HelloTriangleApp{
         scissor.extent = swap_chain_extent_;
         vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-        vkCmdDraw(command_buffer, 3, 1, 0, 0);
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline_);
+        
+        VkBuffer vertex_buffers[] = {vertex_buffer_};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
+
+        vkCmdDraw(command_buffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
         // Finishing up
         vkCmdEndRenderPass(command_buffer);
@@ -1050,6 +1061,47 @@ class HelloTriangleApp{
                 throw  std::runtime_error{"failed to create semaphores."};
             }
         }
+    }
+
+    void create_vertex_buffer(){
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = sizeof(vertices[0]) * vertices.size();
+
+        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if(vkCreateBuffer(device_, &buffer_info, nullptr, &vertex_buffer_)!=VK_SUCCESS){
+            throw std::runtime_error{"failed to create vertex buffer"};
+        }
+        VkMemoryRequirements mem_requirements{};
+        vkGetBufferMemoryRequirements(device_, vertex_buffer_,&mem_requirements);
+
+        VkMemoryAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        if(vkAllocateMemory(device_, &alloc_info, nullptr, &vertex_buffer_memory_) !=VK_SUCCESS)   {
+            throw std::runtime_error{"failed to allocate vertex buffer for merory"};
+        }
+        vkBindBufferMemory(device_, vertex_buffer_, vertex_buffer_memory_, 0);
+
+        void * data{};
+        vkMapMemory(device_, vertex_buffer_memory_, 0, buffer_info.size, 0, &data);
+        memcpy(data, vertices.data(), static_cast<size_t>(buffer_info.size));
+        vkUnmapMemory(device_, vertex_buffer_memory_);
+    }
+    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties){
+        VkPhysicalDeviceMemoryProperties mem_properties;
+        vkGetPhysicalDeviceMemoryProperties(physical_device_, &mem_properties);
+
+        for(uint32_t i = 0; i <mem_properties.memoryTypeCount; i++){
+            if(type_filter & (1 << i) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties){
+                return i;
+            }
+        }
+        throw std::runtime_error{"failed to find suitable memory type."};
     }
 
 
@@ -1142,6 +1194,9 @@ class HelloTriangleApp{
     std::vector<VkSemaphore> image_available_semaphores_;
     std::vector<VkSemaphore> render_finish_semaphores_;
     std::vector<VkFence> in_flight_fences_;
+
+    VkBuffer vertex_buffer_;
+    VkDeviceMemory vertex_buffer_memory_;
 
     bool framebuffer_resized_ = false;
 };

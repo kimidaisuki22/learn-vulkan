@@ -1,5 +1,6 @@
 #pragma once
 #include "GLFW/glfw3.h"
+#include "glm/ext/vector_float2.hpp"
 #include "swap_chain.h"
 #include "tiny-vulkan.h"
 // #include <corecrt_startup.h>
@@ -12,6 +13,8 @@
 #include <stdint.h>
 #include <string>
 #include <optional>
+#include <glm/glm.hpp>
+#include <array>
 // extra header for member functions.
 #include "sformat.h"
 #include <string_view>
@@ -41,6 +44,41 @@ struct Queue_family_indices{
     bool is_complete()const{
         return graphics_family.has_value() && present_family.has_value();
     }
+};
+
+struct Vertex{
+    glm::vec2 pos_;
+    glm::vec3 color_;
+
+    static VkVertexInputBindingDescription get_binding_description(){
+        VkVertexInputBindingDescription binding_description{};
+
+        binding_description.binding = 0;
+        binding_description.stride = sizeof(Vertex);
+        binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return binding_description;
+    }
+    static std::array<VkVertexInputAttributeDescription, 2> get_attribute_descriptions(){
+        std::array<VkVertexInputAttributeDescription, 2> attributes_description{};
+
+        attributes_description[0].binding = 0;
+        attributes_description[0].location = 0;
+        attributes_description[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributes_description[0].offset = offsetof(Vertex, pos_);
+
+        attributes_description[1].binding = 0;
+        attributes_description[1].location = 1;
+        attributes_description[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributes_description[1].offset = offsetof(Vertex, color_);
+
+        return attributes_description;
+    }
+};
+const std::vector<Vertex> vertices{
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
 };
 
 const std::vector<const char*> validation_layer_name_pointers{
@@ -653,10 +691,14 @@ class HelloTriangleApp{
 
         VkPipelineVertexInputStateCreateInfo vertex_input_info{};
         vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertex_input_info.vertexBindingDescriptionCount = 0;
-        vertex_input_info.pVertexBindingDescriptions = nullptr;
-        vertex_input_info.vertexAttributeDescriptionCount = 0;
-        vertex_input_info.pVertexAttributeDescriptions = nullptr;
+        
+        auto binding_description = Vertex::get_binding_description();
+        auto attribute_descriptions = Vertex::get_attribute_descriptions();
+
+        vertex_input_info.vertexBindingDescriptionCount = 1;
+        vertex_input_info.pVertexBindingDescriptions = &binding_description;
+        vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
+        vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly{};
         input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

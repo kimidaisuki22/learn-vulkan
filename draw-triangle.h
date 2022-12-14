@@ -77,9 +77,13 @@ struct Vertex{
     }
 };
 const std::vector<Vertex> vertices{
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
+};
+const std::vector<uint32_t> indices {
+    0,1,2,2,3,0
 };
 
 const std::vector<const char*> validation_layer_name_pointers{
@@ -166,6 +170,7 @@ class HelloTriangleApp{
         create_frame_buffers();
         create_command_pool();
         create_vertex_buffer();
+        create_index_buffer();
         create_command_buffers();
         create_sync_objects();
     }
@@ -180,8 +185,11 @@ class HelloTriangleApp{
     void cleanup(){
         cleanup_swap_chain();
 
+        vkDestroyBuffer(device_, index_buffer_, nullptr);
+        vkFreeMemory(device_, index_buffer_memory_, nullptr);
         vkDestroyBuffer(device_, vertex_buffer_, nullptr);
         vkFreeMemory(device_, vertex_buffer_memory_, nullptr);
+        
         for(size_t i=0;i<MAX_FRAMES_IN_FLIGHT;i++){
             vkDestroyFence(device_, in_flight_fences_[i], nullptr);
             vkDestroySemaphore(device_, render_finish_semaphores_[i], nullptr);
@@ -973,7 +981,9 @@ class HelloTriangleApp{
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
 
-        vkCmdDraw(command_buffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+        vkCmdBindIndexBuffer(command_buffer, index_buffer_, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         // Finishing up
         vkCmdEndRenderPass(command_buffer);
@@ -1083,6 +1093,30 @@ class HelloTriangleApp{
         create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertex_buffer_, vertex_buffer_memory_);
 
         copy_buffer(staging_buffer, vertex_buffer_, size);
+        
+        vkDestroyBuffer(device_, staging_buffer, nullptr);
+        vkFreeMemory(device_, staging_buffer_memory, nullptr);
+    }
+    void create_index_buffer(){
+        VkDeviceSize size =  sizeof(indices[0]) *indices.size();
+        
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_buffer_memory;
+
+        create_buffer(size, 
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            staging_buffer,staging_buffer_memory);
+
+         
+        void * data{};
+        vkMapMemory(device_, staging_buffer_memory, 0,size, 0, &data);
+        memcpy(data, indices.data(), static_cast<size_t>(size));
+        vkUnmapMemory(device_, staging_buffer_memory);
+
+        create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer_, index_buffer_memory_);
+
+        copy_buffer(staging_buffer, index_buffer_, size);
         
         vkDestroyBuffer(device_, staging_buffer, nullptr);
         vkFreeMemory(device_, staging_buffer_memory, nullptr);
@@ -1250,6 +1284,8 @@ class HelloTriangleApp{
 
     VkBuffer vertex_buffer_;
     VkDeviceMemory vertex_buffer_memory_;
+    VkBuffer index_buffer_;
+    VkDeviceMemory index_buffer_memory_;
 
     bool framebuffer_resized_ = false;
 };

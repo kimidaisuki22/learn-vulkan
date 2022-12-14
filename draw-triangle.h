@@ -1064,32 +1064,16 @@ class HelloTriangleApp{
     }
 
     void create_vertex_buffer(){
-        VkBufferCreateInfo buffer_info{};
-        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = sizeof(vertices[0]) * vertices.size();
+        VkDeviceSize size =  sizeof(vertices[0]) * vertices.size();
+        create_buffer(size, 
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            vertex_buffer_,vertex_buffer_memory_);
 
-        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if(vkCreateBuffer(device_, &buffer_info, nullptr, &vertex_buffer_)!=VK_SUCCESS){
-            throw std::runtime_error{"failed to create vertex buffer"};
-        }
-        VkMemoryRequirements mem_requirements{};
-        vkGetBufferMemoryRequirements(device_, vertex_buffer_,&mem_requirements);
-
-        VkMemoryAllocateInfo alloc_info{};
-        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        alloc_info.allocationSize = mem_requirements.size;
-        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        if(vkAllocateMemory(device_, &alloc_info, nullptr, &vertex_buffer_memory_) !=VK_SUCCESS)   {
-            throw std::runtime_error{"failed to allocate vertex buffer for merory"};
-        }
-        vkBindBufferMemory(device_, vertex_buffer_, vertex_buffer_memory_, 0);
-
+         
         void * data{};
-        vkMapMemory(device_, vertex_buffer_memory_, 0, buffer_info.size, 0, &data);
-        memcpy(data, vertices.data(), static_cast<size_t>(buffer_info.size));
+        vkMapMemory(device_, vertex_buffer_memory_, 0,size, 0, &data);
+        memcpy(data, vertices.data(), static_cast<size_t>(size));
         vkUnmapMemory(device_, vertex_buffer_memory_);
     }
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties){
@@ -1102,6 +1086,31 @@ class HelloTriangleApp{
             }
         }
         throw std::runtime_error{"failed to find suitable memory type."};
+    }
+    
+    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory){
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = size;
+
+        buffer_info.usage = usage;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if(vkCreateBuffer(device_, &buffer_info, nullptr, &buffer)!=VK_SUCCESS){
+            throw std::runtime_error{"failed to create buffer"};
+        }
+        VkMemoryRequirements mem_requirements{};
+        vkGetBufferMemoryRequirements(device_, buffer,&mem_requirements);
+
+        VkMemoryAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, properties);
+
+        if(vkAllocateMemory(device_, &alloc_info, nullptr, &buffer_memory) !=VK_SUCCESS)   {
+            throw std::runtime_error{"failed to allocate vertex buffer for merory"};
+        }
+        vkBindBufferMemory(device_, buffer, buffer_memory, 0);
     }
 
 

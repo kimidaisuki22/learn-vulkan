@@ -1,9 +1,15 @@
 #pragma once
 #include "GLFW/glfw3.h"
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/ext/matrix_float4x4.hpp"
+#include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float2.hpp"
+#include "glm/ext/vector_float3.hpp"
+#include "glm/trigonometric.hpp"
 #include "swap_chain.h"
 #include "tiny-vulkan.h"
 // #include <corecrt_startup.h>
+#include <__msvc_chrono.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -13,7 +19,10 @@
 #include <stdint.h>
 #include <string>
 #include <optional>
+
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <array>
 // extra header for member functions.
 #include "sformat.h"
@@ -29,6 +38,8 @@
 #include <vulkan/vulkan_core.h>
 #include <set>
 #include <algorithm>
+#include <chrono>
+
 
 constexpr bool ENABLE_VALIDATION_LAYERS =
 #if defined(NDEBUG) // || defined (__APPLE__)
@@ -76,6 +87,13 @@ struct Vertex{
         return attributes_description;
     }
 };
+
+struct Uniform_buffer_object{
+    glm::mat4 model_;
+    glm::mat4 view_;
+    glm::mat4 proj_;
+};
+
 const std::vector<Vertex> vertices{
     {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
     {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
@@ -166,11 +184,13 @@ class HelloTriangleApp{
         create_swap_chain();
         create_image_views();
         create_render_pass();
+        create_descriptor_set_layout();
         create_graphics_pipeline();
         create_frame_buffers();
         create_command_pool();
         create_vertex_buffer();
         create_index_buffer();
+        create_uniform_buffers();
         create_command_buffers();
         create_sync_objects();
     }
@@ -184,6 +204,13 @@ class HelloTriangleApp{
     }
     void cleanup(){
         cleanup_swap_chain();
+
+        for(size_t i = 0 ; i < MAX_FRAMES_IN_FLIGHT; i++){
+            vkDestroyBuffer(device_, uniform_buffers_[i], nullptr);
+            vkFreeMemory(device_, uniform_buffers_memory_[i], nullptr);
+        }
+
+        vkDestroyDescriptorSetLayout(device_, descriptor_set_layout_, nullptr);
 
         vkDestroyBuffer(device_, index_buffer_, nullptr);
         vkFreeMemory(device_, index_buffer_memory_, nullptr);
@@ -798,8 +825,8 @@ class HelloTriangleApp{
         // Pipeline layout
         VkPipelineLayoutCreateInfo pipeline_layout_info{};
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipeline_layout_info.setLayoutCount = 0;
-        pipeline_layout_info.pSetLayouts = nullptr;
+        pipeline_layout_info.setLayoutCount = 1;
+        pipeline_layout_info.pSetLayouts = &descriptor_set_layout_;
         pipeline_layout_info.pushConstantRangeCount = 0;
         pipeline_layout_info.pPushConstantRanges = nullptr;
 
@@ -1007,6 +1034,9 @@ class HelloTriangleApp{
 
         vkResetFences(device_, 1, &in_flight_fences_[current_frame_]);
 
+        // call before submitting next frame.
+        update_uniform_buffer(current_frame_);
+
         // record commands.
         vkResetCommandBuffer(command_buffers_[current_frame_], 0);
         record_command_buffer(command_buffers_[current_frame_], image_index);
@@ -1191,6 +1221,57 @@ class HelloTriangleApp{
         vkFreeCommandBuffers(device_, command_pool_, 1, &command_buffer);
     }
 
+    void create_descriptor_set_layout(){
+        VkDescriptorSetLayoutBinding ubo_layout_binging{};
+        ubo_layout_binging.binding = 0;
+        ubo_layout_binging.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        ubo_layout_binging.descriptorCount = 1;
+
+        ubo_layout_binging.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        ubo_layout_binging.pImmutableSamplers = nullptr;
+        
+        VkDescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layout_info.bindingCount = 1;
+        layout_info.pBindings = &ubo_layout_binging;
+
+        if(vkCreateDescriptorSetLayout(device_, &layout_info, nullptr, &descriptor_set_layout_) != VK_SUCCESS){
+            throw std::runtime_error{"failed to create descriptor set layout."};
+        }
+    }
+
+    void create_uniform_buffers(){
+        VkDeviceSize buffer_size = sizeof(Uniform_buffer_object);
+
+        uniform_buffers_.resize(MAX_FRAMES_IN_FLIGHT);
+        uniform_buffers_memory_.resize(MAX_FRAMES_IN_FLIGHT);
+        uniform_buffers_mapped_.resize(MAX_FRAMES_IN_FLIGHT);
+
+        for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT ;i++){
+            create_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            , uniform_buffers_[i], uniform_buffers_memory_[i]);
+
+            vkMapMemory(device_, uniform_buffers_memory_[i], 0, buffer_size, 0, &uniform_buffers_mapped_[i]);
+        }
+    }
+
+    void update_uniform_buffer(uint32_t current_image){
+        static auto start_time = std::chrono::high_resolution_clock::now();
+
+        auto current_time = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+        // https://vulkan-tutorial.com/Uniform_buffers/Descriptor_layout_and_buffer#page_Updating-uniform-data
+        Uniform_buffer_object ubo{};
+        ubo.model_ = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0,0,1));
+        ubo.view_ = glm::lookAt(glm::vec3(2,2,2), glm::vec3(0,0,0), glm::vec3(0,0,1));
+        const auto FOV = glm::radians(45.0f);
+        ubo.proj_ = glm::perspective(FOV, static_cast<float>(swap_chain_extent_.width)/static_cast<float>(swap_chain_extent_.height), 0.1f, 10.0f);
+        ubo.proj_[1][1] *= -1;
+        memcpy(uniform_buffers_mapped_[current_image], &ubo, sizeof ubo);
+    }
+
 
     static std::vector<char> read_file(std::string_view filename){
         std::ifstream file(static_cast<std::string>(filename),std::ios::ate|std::ios::binary);
@@ -1270,6 +1351,7 @@ class HelloTriangleApp{
     VkFormat swap_chain_image_format_;
     VkExtent2D swap_chain_extent_;
     VkRenderPass render_pass_;
+    VkDescriptorSetLayout descriptor_set_layout_;
     VkPipelineLayout pipeline_layout_;
     VkPipeline graphics_pipeline_;
 
@@ -1286,6 +1368,10 @@ class HelloTriangleApp{
     VkDeviceMemory vertex_buffer_memory_;
     VkBuffer index_buffer_;
     VkDeviceMemory index_buffer_memory_;
+
+    std::vector<VkBuffer> uniform_buffers_;
+    std::vector<VkDeviceMemory> uniform_buffers_memory_;
+    std::vector<void*> uniform_buffers_mapped_{};
 
     bool framebuffer_resized_ = false;
 };

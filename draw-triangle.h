@@ -41,6 +41,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include <stb/stb_image.h>
+
 
 constexpr bool ENABLE_VALIDATION_LAYERS =
 #if defined(NDEBUG) // || defined (__APPLE__)
@@ -189,6 +191,7 @@ class HelloTriangleApp{
         create_graphics_pipeline();
         create_frame_buffers();
         create_command_pool();
+        create_texture_image();
         create_vertex_buffer();
         create_index_buffer();
         create_uniform_buffers();
@@ -1327,6 +1330,33 @@ class HelloTriangleApp{
             descriptor_write.pTexelBufferView = nullptr;
             vkUpdateDescriptorSets(device_, 1, &descriptor_write, 0, nullptr);
         }
+    }
+
+    void create_texture_image(){
+        int tex_width{};
+        int tex_height{};
+        int tex_channels{};
+
+        stbi_uc * pixels =stbi_load("textures/texture.png", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+        if(!pixels){
+            throw std::runtime_error{"failed to load texture image."};
+        }
+        
+        VkDeviceSize image_size = tex_height * tex_width * 4;
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_buffer_memory;
+
+        create_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+        {
+            void *data;
+            vkMapMemory(device_, staging_buffer_memory, 0, image_size, 0, &data);
+            memcpy(data, pixels, image_size);
+            vkUnmapMemory(device_, staging_buffer_memory);
+        }
+        stbi_image_free(pixels);
+        pixels = nullptr;
+
     }
 
 

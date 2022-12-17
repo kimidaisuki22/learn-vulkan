@@ -193,6 +193,7 @@ class HelloTriangleApp{
         create_command_pool();
         create_texture_image();
         create_texture_image_view();
+        create_texture_sampler();
         create_vertex_buffer();
         create_index_buffer();
         create_uniform_buffers();
@@ -211,6 +212,8 @@ class HelloTriangleApp{
     }
     void cleanup(){
         cleanup_swap_chain();
+
+        vkDestroySampler(device_, texture_sampler_, nullptr);
         vkDestroyImageView(device_, texture_image_view_, nullptr);
         vkDestroyImage(device_, texture_image_, nullptr);
         vkFreeMemory(device_, texture_image_memory_, nullptr);
@@ -441,6 +444,9 @@ class HelloTriangleApp{
         }
 
         VkPhysicalDeviceFeatures device_features{};
+        device_features.samplerAnisotropy = VK_TRUE;
+
+
         VkDeviceCreateInfo create_info{};
 
         create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -476,7 +482,7 @@ class HelloTriangleApp{
             swap_chain_adequate = !swap_chain_support.formats_.empty() && ! swap_chain_support.present_modes_.empty();
         }
 
-        return find_queue_families(device).is_complete() && extensions_supported && swap_chain_adequate;
+        return find_queue_families(device).is_complete() && extensions_supported && swap_chain_adequate && device_feature.samplerAnisotropy;
     }
 
     Queue_family_indices find_queue_families(VkPhysicalDevice device){
@@ -1493,6 +1499,39 @@ class HelloTriangleApp{
         texture_image_view_ = create_image_view(texture_image_, VK_FORMAT_R8G8B8A8_SRGB);
     }
 
+    void create_texture_sampler(){
+        VkSamplerCreateInfo sampler_info{};
+        sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+        sampler_info.magFilter = VK_FILTER_LINEAR;
+        sampler_info.magFilter = VK_FILTER_LINEAR;
+
+        sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+        sampler_info.anisotropyEnable = VK_TRUE;
+
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(physical_device_, &properties);
+        sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+
+        sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        sampler_info.unnormalizedCoordinates = VK_FALSE;
+
+        sampler_info.compareEnable = VK_FALSE;
+        sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+
+        sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        sampler_info.mipLodBias = 0.0f;
+        sampler_info.minLod = 0.0f;
+        sampler_info.maxLod = 0.0f;
+
+        if(vkCreateSampler(device_, &sampler_info, nullptr, &texture_sampler_) != VK_SUCCESS){
+            throw std::runtime_error{"failed to create texture sampler."};
+        }
+    }
+
 
     static std::vector<char> read_file(std::string_view filename){
         std::ifstream file(static_cast<std::string>(filename),std::ios::ate|std::ios::binary);
@@ -1600,6 +1639,7 @@ class HelloTriangleApp{
     VkImage texture_image_;
     VkDeviceMemory texture_image_memory_;
     VkImageView texture_image_view_;
+    VkSampler texture_sampler_;
 
 
     bool framebuffer_resized_ = false;

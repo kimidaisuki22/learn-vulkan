@@ -1537,8 +1537,8 @@ class HelloTriangleApp{
         VkSamplerCreateInfo sampler_info{};
         sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 
-        sampler_info.magFilter = VK_FILTER_LINEAR;
-        sampler_info.magFilter = VK_FILTER_LINEAR;
+        sampler_info.magFilter = VK_FILTER_NEAREST;
+        sampler_info.magFilter = VK_FILTER_NEAREST;
 
         sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;

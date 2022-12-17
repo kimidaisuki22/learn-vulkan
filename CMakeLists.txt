@@ -17,7 +17,7 @@ add_library(tiny-vulkan tiny-vulkan.cpp)
 target_include_directories(tiny-vulkan PUBLIC .)
 
 
-add_executable(draw-triangle draw-triangle.cpp stb-impl.cpp)
+add_executable(draw-triangle draw-triangle.cpp lib-impl.cpp)
 
 
 

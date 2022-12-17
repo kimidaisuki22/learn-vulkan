@@ -9,6 +9,7 @@
 #include "swap_chain.h"
 #include "tiny-vulkan.h"
  
+#include <compare>
 #include <cstddef>
 #include <cstdint>
  
@@ -42,7 +43,10 @@
 #include <chrono>
 
 #include <stb/stb_image.h>
-
+#include <tinyobjloader/tiny_obj_loader.h>
+#include <unordered_map>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 constexpr bool ENABLE_VALIDATION_LAYERS =
 #if defined(NDEBUG) // || defined (__APPLE__)
@@ -51,6 +55,11 @@ false;
 true;
 #endif
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr uint32_t WIDTH = 800;
+constexpr uint32_t HEIGHT = 600;
+
+const std::string MODEL_PATH = "models/test_model.obj";
+const std::string TEXTURE_PATH = "textures/test_texture.png";
 
 struct Queue_family_indices{
     std::optional <uint32_t> graphics_family;
@@ -65,6 +74,10 @@ struct Vertex{
     glm::vec3 pos_;
     glm::vec3 color_;
     glm::vec2 tex_coord_;
+
+    bool operator==(const Vertex& other) const {
+        return pos_ == other.pos_ && color_ == other.color_ && tex_coord_ == other.tex_coord_;
+    }
 
     static VkVertexInputBindingDescription get_binding_description(){
         VkVertexInputBindingDescription binding_description{};
@@ -96,29 +109,22 @@ struct Vertex{
         return attributes_description;
     }
 };
+namespace std {
+    template<> struct hash<Vertex> {
+        size_t operator()(Vertex const& vertex) const {
+            return ((hash<glm::vec3>()(vertex.pos_) ^
+                   (hash<glm::vec3>()(vertex.color_) << 1)) >> 1) ^
+                   (hash<glm::vec2>()(vertex.tex_coord_) << 1);
+        }
+    };
+}
 
 struct Uniform_buffer_object{
     alignas(16) glm::mat4 model_;
     alignas(16) glm::mat4 view_;
     alignas(16) glm::mat4 proj_;
 };
-
-const std::vector<Vertex> vertices{
-   {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-};
-const std::vector<uint32_t> indices {
-     0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4,
-};
-
+ 
 const std::vector<const char*> validation_layer_name_pointers{
     "VK_LAYER_KHRONOS_validation"
 };
@@ -207,6 +213,7 @@ class HelloTriangleApp{
         create_texture_image();
         create_texture_image_view();
         create_texture_sampler();
+        load_model();
         create_vertex_buffer();
         create_index_buffer();
         create_uniform_buffers();
@@ -1068,7 +1075,7 @@ class HelloTriangleApp{
         vkCmdBindIndexBuffer(command_buffer, index_buffer_, 0, VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout_, 0, 1, &descriptor_sets_[current_frame_], 0, nullptr);
 
-        vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices_.size()), 1, 0, 0, 0);
 
         // Finishing up
         vkCmdEndRenderPass(command_buffer);
@@ -1162,7 +1169,7 @@ class HelloTriangleApp{
     }
 
     void create_vertex_buffer(){
-        VkDeviceSize size =  sizeof(vertices[0]) * vertices.size();
+        VkDeviceSize size =  sizeof(vertices_[0]) * vertices_.size();
         
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
@@ -1175,7 +1182,7 @@ class HelloTriangleApp{
          
         void * data{};
         vkMapMemory(device_, staging_buffer_memory, 0,size, 0, &data);
-        memcpy(data, vertices.data(), static_cast<size_t>(size));
+        memcpy(data, vertices_.data(), static_cast<size_t>(size));
         vkUnmapMemory(device_, staging_buffer_memory);
 
         create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertex_buffer_, vertex_buffer_memory_);
@@ -1186,7 +1193,7 @@ class HelloTriangleApp{
         vkFreeMemory(device_, staging_buffer_memory, nullptr);
     }
     void create_index_buffer(){
-        VkDeviceSize size =  sizeof(indices[0]) *indices.size();
+        VkDeviceSize size =  sizeof(indices_[0]) *indices_.size();
         
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
@@ -1199,7 +1206,7 @@ class HelloTriangleApp{
          
         void * data{};
         vkMapMemory(device_, staging_buffer_memory, 0,size, 0, &data);
-        memcpy(data, indices.data(), static_cast<size_t>(size));
+        memcpy(data, indices_.data(), static_cast<size_t>(size));
         vkUnmapMemory(device_, staging_buffer_memory);
 
         create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer_, index_buffer_memory_);
@@ -1394,7 +1401,7 @@ class HelloTriangleApp{
         int tex_height{};
         int tex_channels{};
 
-        stbi_uc * pixels =stbi_load("textures/texture.png", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+        stbi_uc * pixels =stbi_load(TEXTURE_PATH.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
         if(!pixels){
             throw std::runtime_error{"failed to load texture image."};
         }
@@ -1671,6 +1678,45 @@ class HelloTriangleApp{
         return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
     }
 
+    void load_model(){
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn,err;
+
+        if(!tinyobj::LoadObj(&attrib, &shapes,&materials, &warn,&err,MODEL_PATH.c_str())){
+            throw std::runtime_error{warn + err};
+        }
+
+        std::unordered_map<Vertex, uint32_t> unique_vertices{};
+
+        for(const auto& shape: shapes){
+            for(const auto& index: shape.mesh.indices){
+                Vertex vertex{};
+
+                vertex.pos_ = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+                vertex.tex_coord_ = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                }; 
+
+                vertex.color_ = {1.0f,1.0f,1.0f};
+
+                if(unique_vertices.count(vertex) == 0){
+                    unique_vertices[vertex] = static_cast<uint32_t>(unique_vertices.size());
+                    vertices_.push_back(vertex);
+                }
+                indices_.push_back(unique_vertices[vertex]);
+            }
+        }
+
+    }
+
 
     static std::vector<char> read_file(std::string_view filename){
         std::ifstream file(static_cast<std::string>(filename),std::ios::ate|std::ios::binary);
@@ -1763,6 +1809,8 @@ class HelloTriangleApp{
     std::vector<VkSemaphore> render_finish_semaphores_;
     std::vector<VkFence> in_flight_fences_;
 
+    std::vector<Vertex> vertices_;
+    std::vector<uint32_t> indices_;
     VkBuffer vertex_buffer_;
     VkDeviceMemory vertex_buffer_memory_;
     VkBuffer index_buffer_;

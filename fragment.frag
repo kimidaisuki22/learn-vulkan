@@ -6,6 +6,16 @@ layout(location = 1) in vec2 frag_tex_coord;
 
 layout(binding = 1) uniform sampler2D tex_sampler;
 
+vec3 checker_board(vec2 uv){
+    vec2 f = uv - floor(uv);
+    return 
+    ((f.x < 0.5) ^^ (f.y < 0.5f)) ? 
+    vec3(1,1,1) :
+    vec3(0,0,0);
+}
+
 void main(){
-    out_color = vec4(frag_color * texture(tex_sampler, frag_tex_coord).rgb, 1.0);
+    //vec3 color  = frag_color * texture(tex_sampler, frag_tex_coord).rgb;
+    vec3 color = 0.6 * checker_board(frag_tex_coord * 10) +vec3(0.3,0.3,0.3);
+    out_color = vec4(color , 1.0);
 }

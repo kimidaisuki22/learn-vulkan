@@ -48,6 +48,9 @@
 #include <unordered_map>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_vulkan.h>
 
 constexpr bool ENABLE_VALIDATION_LAYERS =
 #if defined(NDEBUG) // || defined (__APPLE__)
@@ -223,6 +226,8 @@ class HelloTriangleApp{
         create_descriptor_sets();
         create_command_buffers();
         create_sync_objects();
+
+        setup_imgui();
     }
     void main_loop(){
         while(!glfwWindowShouldClose(window_)){
@@ -656,6 +661,7 @@ class HelloTriangleApp{
         create_info.imageFormat = surface_format.format;
         create_info.imageColorSpace = surface_format.colorSpace;
         create_info.imageExtent = extent;
+        
 
         create_info.imageArrayLayers = 1; // always 1 unless developing stereo 3D application.
         create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -900,6 +906,7 @@ class HelloTriangleApp{
 
         pipeline_info.renderPass = render_pass_;
         pipeline_info.subpass = 0;
+        
 
         pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
         pipeline_info.basePipelineIndex = -1;
@@ -954,7 +961,7 @@ class HelloTriangleApp{
         color_attachment_resolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         color_attachment_resolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         color_attachment_resolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        color_attachment_resolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        color_attachment_resolve.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkAttachmentReference color_attachment_resolve_ref{};
         color_attachment_resolve_ref.attachment = 2;
@@ -997,6 +1004,7 @@ class HelloTriangleApp{
         if(vkCreateRenderPass(device_, &render_pass_info, nullptr, &render_pass_) != VK_SUCCESS){
             throw std::runtime_error{"failed to create render pass."};
         }
+        create_imgui_pass();
     }
 
     void create_frame_buffers(){
@@ -1057,7 +1065,7 @@ class HelloTriangleApp{
             throw std::runtime_error{"failed to begin record commmand buffer."};
         }
 
-
+              
         // Starting a render pass
         VkRenderPassBeginInfo render_pass_info{};
         render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1104,7 +1112,51 @@ class HelloTriangleApp{
         vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices_.size()), 1, 0, 0, 0);
 
         // Finishing up
+        // vkCmdEndRenderPass(command_buffer);
+       
+        {
+  
+              
+        // // Starting a render pass
+        // VkRenderPassBeginInfo render_pass_info{};
+        // render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        // render_pass_info.renderPass = imgui_render_pass_;
+        // render_pass_info.framebuffer = swap_chain_frame_buffers_[image_index];
+
+        // render_pass_info.renderArea.offset = {0,0};
+        // render_pass_info.renderArea.extent = swap_chain_extent_;
+
+        // std::array<VkClearValue,2> clear_values{};
+        // clear_values[0].color = {{0.0f,0.0f,0.0f,1.0f}};
+        // clear_values[1].depthStencil = {1.0f,0};
+        // render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+        // render_pass_info.pClearValues = clear_values.data();
+
+        // vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Basic drawing commands
+        // vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline_);
+
+        VkViewport viewport{};
+        viewport.x = 0;
+        viewport.y = 0;
+        viewport.width = static_cast<float>(swap_chain_extent_.width);
+        viewport.height = static_cast<float>(swap_chain_extent_.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = {0,0};
+        scissor.extent = swap_chain_extent_;
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline_);
+        draw_imgui(command_buffer,image_index);
+        // vkCmdEndRenderPass(command_buffer);
+        }
         vkCmdEndRenderPass(command_buffer);
+
         if(vkEndCommandBuffer(command_buffer)!=VK_SUCCESS){
             throw  std::runtime_error{"failed to record command buffer."};
         }
@@ -1683,6 +1735,10 @@ class HelloTriangleApp{
 
         transition_image_layout(depth_image_, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, 1);
     }
+    void create_imgui_image_resource(){
+        create_image(swap_chain_extent_.width, swap_chain_extent_.height, 1, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, imgui_image_,imgui_image_memory_);
+        imgui_image_view_ =  create_image_view(imgui_image_, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    }
 
     VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features){
         for(VkFormat format :candidates){
@@ -1862,6 +1918,216 @@ class HelloTriangleApp{
         color_image_view_ = create_image_view(color_image_, color_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 
+    void setup_imgui_font(){
+         // Load Fonts
+    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
+    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
+    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
+    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
+    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
+    // - Read 'docs/FONTS.md' for more instructions and details.
+    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
+    //io.Fonts->AddFontDefault();
+    auto & io = ImGui::GetIO();
+    io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
+    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+    // io.Fonts->Build();
+    // IM_ASSERT(font != NULL);
+
+    // Upload Fonts
+    {   
+        VkResult err;
+        auto command_buffer = begin_single_time_commands();
+
+        ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+ 
+        end_single_time_commands(command_buffer);
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
+    }
+    }
+    void create_imgui_pass(){
+        imgui_render_pass_ = render_pass_;
+        return;
+        {
+            VkAttachmentDescription attachment{};
+            attachment.format = swap_chain_image_format_;
+            attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+            attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+            attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            
+
+            VkAttachmentReference attachment_ref {};
+            attachment_ref.attachment = 0;
+            attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            VkSubpassDescription subpass{};
+            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            subpass.colorAttachmentCount = 1;
+            subpass.pColorAttachments = &attachment_ref;
+
+            VkSubpassDependency dependency{};
+            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependency.dstSubpass = 0;
+            dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+            VkRenderPassCreateInfo info{};
+            info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+            info.attachmentCount = 1;
+            info.pAttachments = &attachment;
+            info.subpassCount = 1;
+            info.pSubpasses = &subpass;
+            info.dependencyCount = 1;
+            info.pDependencies = &dependency;
+
+            if(vkCreateRenderPass(device_, &info, nullptr, &imgui_render_pass_) != VK_SUCCESS){
+                throw std::runtime_error{"failed to create render pass for imgui"};
+            }
+        }
+    }
+    void setup_imgui(){
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+        //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+        // Setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsLight();
+
+        // addition from me.
+        // create descriptor pool
+         
+        {
+             VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+            
+        };
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+        VkResult err = vkCreateDescriptorPool(device_, &pool_info, nullptr, &imgui_descriptor_pool_);
+        }
+        // Setup Platform/Renderer backends
+ 
+        ImGui_ImplGlfw_InitForVulkan(window_, true);
+        ImGui_ImplVulkan_InitInfo init_info = {};
+        init_info.Instance = instance_;
+        init_info.PhysicalDevice = physical_device_;
+        init_info.Device = device_;
+        init_info.QueueFamily = VK_QUEUE_GRAPHICS_BIT;
+        init_info.Queue = graphics_queue_;
+        init_info.PipelineCache = VK_NULL_HANDLE;
+        init_info.DescriptorPool = imgui_descriptor_pool_;
+        init_info.Subpass = 0;
+        init_info.MinImageCount = MAX_FRAMES_IN_FLIGHT;
+        init_info.ImageCount = static_cast<uint32_t>(swap_chain_images_.size());
+        init_info.MSAASamples = msaa_samples_;
+        init_info.Allocator = nullptr;
+        init_info.CheckVkResultFn = nullptr;
+
+   
+
+        ImGui_ImplVulkan_Init(&init_info, imgui_render_pass_);
+        // {
+        //      ImGuiIO& io = ImGui::GetIO();
+        //     IM_ASSERT(io.BackendRendererUserData == nullptr && "Already initialized a renderer backend!");
+
+        //     // Setup backend capabilities flags
+        //      ImGui_ImplVulkan_Data* bd = IM_NEW(ImGui_ImplVulkan_Data)();
+        //     io.BackendRendererUserData = (void*)bd;
+        //     io.BackendRendererName = "imgui_impl_vulkan";
+        //     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
+
+
+
+        //     bd->VulkanInitInfo = *info;
+        //     bd->RenderPass = render_pass;
+        //     bd->Subpass = info->Subpass;
+
+        //    ImGui_ImplVulkan_CreateDeviceObjects();
+
+        // }
+        create_imgui_image_resource();
+        {
+            VkImageView attachment[1];
+            VkFramebufferCreateInfo    info{};
+            info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            info.renderPass = imgui_render_pass_;
+            info.pAttachments = attachment;
+            info.attachmentCount = 1;
+            info.width = width_;
+            info.height = height_;
+            info.layers = 1;
+            imgui_framebuffer_.resize(swap_chain_frame_buffers_.size());
+            for(uint32_t i=0;i< imgui_framebuffer_.size();i++){
+                attachment[0] = imgui_image_view_;
+                vkCreateFramebuffer(device_, &info, nullptr, &imgui_framebuffer_[i]);
+            }
+            
+        }
+
+        setup_imgui_font();
+    }
+
+    void draw_imgui(VkCommandBuffer command_buffer,int32_t image_index){
+        // auto command_buffer = begin_single_time_commands();
+
+        {
+            VkRenderPassBeginInfo info{};
+            info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            info.renderPass = imgui_render_pass_;
+            info.framebuffer = swap_chain_frame_buffers_[image_index];
+            info.renderArea.extent = swap_chain_extent_;
+            info.clearValueCount = 0;
+            
+            // vkCmdBeginRenderPass(command_buffer, &info, VK_SUBPASS_CONTENTS_INLINE); 
+
+        }
+
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        
+
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
+        ImGui::Begin("const char *name");
+        ImGui::Button("fd");
+        ImGui::End();
+
+        ImGui::EndFrame();
+        ImGui::Render();
+        ImDrawData* draw_data = ImGui::GetDrawData();
+
+        ImGui_ImplVulkan_RenderDrawData(draw_data, command_buffer);
+        // vkCmdEndRenderPass(command_buffer);
+        // end_single_time_commands(command_buffer);     
+    }
+
 
 
     static std::vector<char> read_file(std::string_view filename){
@@ -1983,6 +2249,15 @@ class HelloTriangleApp{
     VkImage color_image_;
     VkDeviceMemory color_image_memory_;
     VkImageView color_image_view_;
+
+
+    VkDescriptorPool imgui_descriptor_pool_;
+    VkRenderPass imgui_render_pass_;
+
+    VkImage imgui_image_;
+    VkDeviceMemory imgui_image_memory_;
+    VkImageView imgui_image_view_;
+    std::vector<VkFramebuffer> imgui_framebuffer_;
 
 
     bool framebuffer_resized_ = false;

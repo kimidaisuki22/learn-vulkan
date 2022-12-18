@@ -233,6 +233,7 @@ class HelloTriangleApp{
         while(!glfwWindowShouldClose(window_)){
             showFPS(window_);
             glfwPollEvents();
+            // glfwWaitEventsTimeout(0.008);
             draw_frame();
         }
         vkDeviceWaitIdle(device_);
@@ -594,8 +595,12 @@ class HelloTriangleApp{
         return available_formats.front();
     }
 
+    // Choose vsync mode.
     VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes){
         for(auto& available_present_mode:available_present_modes){
+            if(available_present_mode == VK_PRESENT_MODE_FIFO_KHR){
+                return available_present_mode;
+            }
             if(available_present_mode == VK_PRESENT_MODE_MAILBOX_KHR){ // Known as triple buffering.
                 return available_present_mode;
             }
@@ -1398,10 +1403,13 @@ class HelloTriangleApp{
 
         // https://vulkan-tutorial.com/Uniform_buffers/Descriptor_layout_and_buffer#page_Updating-uniform-data
         Uniform_buffer_object ubo{};
-        ubo.model_ = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),glm::vec3(0,0,1));
-        ubo.view_ = glm::lookAt(glm::vec3(2,2,2), glm::vec3(0,0,0), glm::vec3(0,0,1));
+        ubo.model_ = glm::translate(glm::mat4(1.0f), camera_degree_) * 
+        glm::rotate(glm::mat4(1.0f), 
+            time * glm::radians(90.0f),
+            glm::vec3(0,0,1));
+        ubo.view_ = glm::lookAt(glm::vec3(0,1,0), camera_position_, glm::vec3(0,0,1));
         const auto FOV = glm::radians(45.0f);
-        ubo.proj_ = glm::perspective(FOV, static_cast<float>(swap_chain_extent_.width)/static_cast<float>(swap_chain_extent_.height), 0.1f, 10.0f);
+        ubo.proj_ = glm::perspective(FOV, static_cast<float>(swap_chain_extent_.width)/static_cast<float>(swap_chain_extent_.height), 0.1f, 10000.0f);
         ubo.proj_[1][1] *= -1;
         memcpy(uniform_buffers_mapped_[current_image], &ubo, sizeof ubo);
     }
@@ -2117,6 +2125,8 @@ class HelloTriangleApp{
         ImGui::ShowDemoWindow();
         ImGui::Begin("const char *name");
         ImGui::Button("fd");
+        ImGui::DragFloat3("camera", &camera_degree_.x,0.01f);
+        ImGui::DragFloat3("camera pos", &camera_position_.x,0.01f);
         ImGui::End();
 
         ImGui::EndFrame();
@@ -2258,6 +2268,9 @@ class HelloTriangleApp{
     VkDeviceMemory imgui_image_memory_;
     VkImageView imgui_image_view_;
     std::vector<VkFramebuffer> imgui_framebuffer_;
+
+    glm::vec3 camera_degree_{};
+    glm::vec3 camera_position_{};
 
 
     bool framebuffer_resized_ = false;

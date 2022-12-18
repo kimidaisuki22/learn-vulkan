@@ -468,6 +468,7 @@ class HelloTriangleApp{
 
         VkPhysicalDeviceFeatures device_features{};
         device_features.samplerAnisotropy = VK_TRUE;
+        device_features.sampleRateShading = VK_TRUE;
 
 
         VkDeviceCreateInfo create_info{};
@@ -829,9 +830,9 @@ class HelloTriangleApp{
         // Multisampling.
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisampling.sampleShadingEnable = VK_FALSE;
+        multisampling.sampleShadingEnable = VK_TRUE;
         multisampling.rasterizationSamples = msaa_samples_;
-        multisampling.minSampleShading = 1.f;
+        multisampling.minSampleShading = 0.8f; // closer to 1 is smoother.
         multisampling.pSampleMask = nullptr;
         multisampling.alphaToCoverageEnable = VK_FALSE;
         multisampling.alphaToOneEnable = VK_FALSE;

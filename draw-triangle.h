@@ -9,6 +9,7 @@
 #include "swap_chain.h"
 #include "tiny-vulkan.h"
  
+#include <cmath>
 #include <compare>
 #include <cstddef>
 #include <cstdint>
@@ -713,7 +714,7 @@ class HelloTriangleApp{
         swap_chain_image_views_.resize(swap_chain_images_.size());
 
         for(size_t i = 0 ; i < swap_chain_image_views_.size();i++){
-          swap_chain_image_views_[i] = create_image_view(swap_chain_images_[i], swap_chain_image_format_,VK_IMAGE_ASPECT_COLOR_BIT);
+          swap_chain_image_views_[i] = create_image_view(swap_chain_images_[i], swap_chain_image_format_,VK_IMAGE_ASPECT_COLOR_BIT, 1);
         }
     }
     void create_graphics_pipeline(){
@@ -1409,6 +1410,8 @@ class HelloTriangleApp{
         VkDeviceSize image_size = tex_height * tex_width * 4;
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
+        
+        mip_levels_ = static_cast<uint32_t>(std::floor(std::log2(std::max(tex_width,tex_height)))) + 1;
 
         create_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 
@@ -1421,31 +1424,34 @@ class HelloTriangleApp{
         stbi_image_free(pixels);
         pixels = nullptr;        
 
-        create_image(static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_width), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT, texture_image_, texture_image_memory_);
+        create_image(static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_width), mip_levels_,VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |VK_IMAGE_USAGE_SAMPLED_BIT,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image_, texture_image_memory_);
 
-        transition_image_layout(texture_image_, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        transition_image_layout(texture_image_, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mip_levels_);
         copy_buffer_to_image(staging_buffer, texture_image_, static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_height));
 
-        transition_image_layout(texture_image_, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        // transition_image_layout(texture_image_, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mip_levels_);
+
 
         vkDestroyBuffer(device_, staging_buffer, nullptr);
         vkFreeMemory(device_, staging_buffer_memory, nullptr);
+        
+        generate_mipmaps(texture_image_, VK_FORMAT_R8G8B8A8_SRGB, tex_width, tex_height, mip_levels_);
     }
     
-    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags properties, VkImage& image, VkDeviceMemory& image_memory){
+    void create_image(uint32_t width, uint32_t height,uint32_t mip_levels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,VkImage& image, VkDeviceMemory& image_memory){
         VkImageCreateInfo image_info{};
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         image_info.imageType = VK_IMAGE_TYPE_2D;
         image_info.extent.width = static_cast<uint32_t>(width);
         image_info.extent.height = static_cast<uint32_t>(height);
         image_info.extent.depth = 1;
-        image_info.mipLevels = 1;
+        image_info.mipLevels = mip_levels;
         image_info.arrayLayers = 1;
 
         image_info.format = format;
         image_info.tiling = tiling;
         image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        image_info.usage = properties;
+        image_info.usage = usage;
         image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         image_info.samples = VK_SAMPLE_COUNT_1_BIT;
         image_info.flags = 0;
@@ -1460,7 +1466,7 @@ class HelloTriangleApp{
         VkMemoryAllocateInfo alloc_info{};
         alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         alloc_info.allocationSize = mem_requirements.size;
-        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, properties);
 
         if(vkAllocateMemory(device_, &alloc_info, nullptr, &image_memory) != VK_SUCCESS){
             throw std::runtime_error{"failed to allocate iamge memory."};
@@ -1501,7 +1507,7 @@ class HelloTriangleApp{
         vkFreeCommandBuffers(device_, command_pool_, 1, &command_buffer);
     }
 
-    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout){
+    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_levels){
         VkCommandBuffer command_buffer = begin_single_time_commands();
 
         VkImageMemoryBarrier barrier{};
@@ -1514,7 +1520,7 @@ class HelloTriangleApp{
 
         barrier.image = image;
         barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.levelCount = mip_levels;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount = 1;
 
@@ -1588,7 +1594,7 @@ class HelloTriangleApp{
         end_single_time_commands(command_buffer);
     }
 
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags){
+    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags, uint32_t mip_levels){
         VkImageViewCreateInfo view_info{};
         view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         view_info.image = image;
@@ -1596,7 +1602,7 @@ class HelloTriangleApp{
         view_info.format = format;
         view_info.subresourceRange.aspectMask = aspect_flags;
         view_info.subresourceRange.baseMipLevel = 0;
-        view_info.subresourceRange.levelCount = 1;
+        view_info.subresourceRange.levelCount = mip_levels;
         view_info.subresourceRange.baseArrayLayer =0;
         view_info.subresourceRange.layerCount = 1;
 
@@ -1607,7 +1613,7 @@ class HelloTriangleApp{
         return image_view;
     } 
     void create_texture_image_view(){
-        texture_image_view_ = create_image_view(texture_image_, VK_FORMAT_R8G8B8A8_SRGB,VK_IMAGE_ASPECT_COLOR_BIT);
+        texture_image_view_ = create_image_view(texture_image_, VK_FORMAT_R8G8B8A8_SRGB,VK_IMAGE_ASPECT_COLOR_BIT,mip_levels_);
     }
 
     void create_texture_sampler(){
@@ -1636,7 +1642,7 @@ class HelloTriangleApp{
         sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         sampler_info.mipLodBias = 0.0f;
         sampler_info.minLod = 0.0f;
-        sampler_info.maxLod = 0.0f;
+        sampler_info.maxLod = static_cast<float>(mip_levels_);
 
         if(vkCreateSampler(device_, &sampler_info, nullptr, &texture_sampler_) != VK_SUCCESS){
             throw std::runtime_error{"failed to create texture sampler."};
@@ -1646,11 +1652,11 @@ class HelloTriangleApp{
     void create_depth_resource(){
         auto depth_format = find_depth_format();
 
-        create_image(swap_chain_extent_.width, swap_chain_extent_.height, depth_format, VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth_image_, depth_image_memory_);
+        create_image(swap_chain_extent_.width, swap_chain_extent_.height, 1, depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT ,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth_image_, depth_image_memory_);
 
-        depth_image_view_ = create_image_view(depth_image_, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+        depth_image_view_ = create_image_view(depth_image_, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 
-        transition_image_layout(depth_image_, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        transition_image_layout(depth_image_, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, 1);
     }
 
     VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features){
@@ -1714,8 +1720,100 @@ class HelloTriangleApp{
                 indices_.push_back(unique_vertices[vertex]);
             }
         }
-
     }
+
+    void generate_mipmaps(VkImage image, VkFormat image_format, uint32_t tex_width, uint32_t tex_height, uint32_t mip_levels){
+        // Check if image suport linear blitting.
+        VkFormatProperties format_properties{};
+        vkGetPhysicalDeviceFormatProperties(physical_device_, image_format, &format_properties);
+
+        if(!(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)){
+            throw std::runtime_error{"texture iamge format does not suport linear blitting."};
+        }
+
+
+        VkCommandBuffer command_buffer = begin_single_time_commands();
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.image = image;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.levelCount = 1;
+
+        int32_t mip_width = tex_width;
+        int32_t mip_height = tex_height;
+ 
+        for(uint32_t i = 1; i < mip_levels; i++){
+            barrier.subresourceRange.baseMipLevel = i - 1;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+            vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
+            0, nullptr, 0, nullptr, 
+            1, &barrier);
+
+            VkImageBlit blit{};
+            blit.srcOffsets[0] = {0, 0, 0};
+            blit.srcOffsets[1] = {mip_width, mip_height, 1};
+            blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+
+            blit.dstOffsets[0] = {0, 0, 0};
+            blit.dstOffsets[1] = {std::max(mip_width/2 ,1), std::max(mip_height/2 ,1), 1};
+            blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.dstSubresource.mipLevel = i;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+
+            vkCmdBlitImage(command_buffer,
+             image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+             image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+             1, &blit, 
+             VK_FILTER_LINEAR);
+
+             barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+             barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+             barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+             vkCmdPipelineBarrier(command_buffer, 
+             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 
+             0, nullptr, 
+             0, nullptr, 
+             1, &barrier);
+
+             if(mip_width > 1){
+                mip_width /= 2;
+             }
+             if(mip_height > 1){
+                mip_height /= 2;
+             }
+        }
+
+        barrier.subresourceRange.baseMipLevel = mip_levels - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(command_buffer, 
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 
+        0, nullptr, 
+        0, nullptr, 
+        1, &barrier);
+
+        end_single_time_commands(command_buffer);
+    }
+
 
 
     static std::vector<char> read_file(std::string_view filename){
@@ -1823,6 +1921,7 @@ class HelloTriangleApp{
     VkDescriptorPool descriptor_pool_;
     std::vector<VkDescriptorSet> descriptor_sets_;
 
+    uint32_t mip_levels_;
     VkImage texture_image_;
     VkDeviceMemory texture_image_memory_;
     VkImageView texture_image_view_;

@@ -24,7 +24,7 @@ add_library(imgui  ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp ${IMGUI_DIR}/backen
 target_compile_definitions(imgui PUBLIC -DImTextureID=ImU64)
 target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 
-add_executable(draw-triangle draw-triangle.cpp lib-impl.cpp)
+add_executable(draw-triangle draw-triangle.cpp lib-impl.cpp imgui_main.cpp)
 
 
 

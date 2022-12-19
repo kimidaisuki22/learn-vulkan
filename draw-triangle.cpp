@@ -3,7 +3,14 @@
 #include <iostream>
 #include <format>
 
-int main(){
+int main(int argc,const char ** argv){
+    if(argc > 1){
+        MODEL_PATH = argv[1];
+    }
+    if(argc > 2){
+        TEXTURE_PATH = argv[2];
+    }
+
     uint32_t extensionCount {};
     vkEnumerateInstanceExtensionProperties(nullptr,&extensionCount,nullptr);
 

@@ -5,6 +5,7 @@
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/vector_float2.hpp"
 #include "glm/ext/vector_float3.hpp"
+#include "glm/geometric.hpp"
 #include "glm/trigonometric.hpp"
 #include "swap_chain.h"
 #include "tiny-vulkan.h"
@@ -33,7 +34,6 @@
 #include <stdexcept>
 #include <iostream>
 #include <sys/types.h>
-#include <vcruntime_string.h>
 #include <vector>
 #include <span>
 #include <unordered_set>
@@ -62,8 +62,8 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr uint32_t WIDTH = 800;
 constexpr uint32_t HEIGHT = 600;
 
-const std::string MODEL_PATH = "models/test_model.obj";
-const std::string TEXTURE_PATH = "textures/test_texture.png";
+ std::string MODEL_PATH = "models/test_model.obj";
+ std::string TEXTURE_PATH = "textures/test_texture.png";
 
 struct Queue_family_indices{
     std::optional <uint32_t> graphics_family;
@@ -76,11 +76,11 @@ struct Queue_family_indices{
 
 struct Vertex{
     glm::vec3 pos_;
-    glm::vec3 color_;
+    glm::vec3 normal_;
     glm::vec2 tex_coord_;
 
     bool operator==(const Vertex& other) const {
-        return pos_ == other.pos_ && color_ == other.color_ && tex_coord_ == other.tex_coord_;
+        return pos_ == other.pos_ && normal_ == other.normal_ && tex_coord_ == other.tex_coord_;
     }
 
     static VkVertexInputBindingDescription get_binding_description(){
@@ -103,7 +103,7 @@ struct Vertex{
         attributes_description[1].binding = 0;
         attributes_description[1].location = 1;
         attributes_description[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributes_description[1].offset = offsetof(Vertex, color_);
+        attributes_description[1].offset = offsetof(Vertex, normal_);
 
         attributes_description[2].binding = 0;
         attributes_description[2].location = 2;
@@ -117,7 +117,7 @@ namespace std {
     template<> struct hash<Vertex> {
         size_t operator()(Vertex const& vertex) const {
             return ((hash<glm::vec3>()(vertex.pos_) ^
-                   (hash<glm::vec3>()(vertex.color_) << 1)) >> 1) ^
+                   (hash<glm::vec3>()(vertex.normal_) << 1)) >> 1) ^
                    (hash<glm::vec2>()(vertex.tex_coord_) << 1);
         }
     };
@@ -1402,11 +1402,20 @@ class HelloTriangleApp{
 
         // https://vulkan-tutorial.com/Uniform_buffers/Descriptor_layout_and_buffer#page_Updating-uniform-data
         Uniform_buffer_object ubo{};
-        ubo.model_ = glm::translate(glm::mat4(1.0f), camera_degree_) * 
-        glm::rotate(glm::mat4(1.0f), 
-            time * glm::radians(90.0f),
-            glm::vec3(0,0,1));
-        ubo.view_ = glm::lookAt(glm::vec3(0,1,0), camera_position_, glm::vec3(0,0,1));
+
+        glm::mat4 rotate_mat {1.0f};
+        if(auto_rotate_model_){
+            model_rotation_.z = time * glm::radians(90.f);
+        }
+        for (int i = 0; i < 3; i++) {
+            auto axis = glm::vec3(0, 0, 0);
+            axis[i] = 1;
+            rotate_mat =
+                glm::rotate(rotate_mat,  model_rotation_[i], axis);
+        }
+
+        ubo.model_ = glm::translate(glm::mat4(1.0f), model_position_) * rotate_mat;
+        ubo.view_ = glm::lookAt(camera_position_, {}, glm::vec3(0,0,1));
         const auto FOV = glm::radians(45.0f);
         ubo.proj_ = glm::perspective(FOV, static_cast<float>(swap_chain_extent_.width)/static_cast<float>(swap_chain_extent_.height), 0.1f, 10000.0f);
         ubo.proj_[1][1] *= -1;
@@ -1797,7 +1806,11 @@ class HelloTriangleApp{
                     1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
                 }; 
 
-                vertex.color_ = {1.0f,1.0f,1.0f};
+                vertex.normal_ = {
+                    attrib.normals[3 * index.normal_index + 0],
+                    attrib.normals[3 * index.normal_index + 1],
+                    attrib.normals[3 * index.normal_index + 2],
+                };
 
                 if(unique_vertices.count(vertex) == 0){
                     unique_vertices[vertex] = static_cast<uint32_t>(unique_vertices.size());
@@ -2011,8 +2024,17 @@ class HelloTriangleApp{
         ImGui::ShowDemoWindow();
         ImGui::Begin("const char *name");
         ImGui::Button("fd");
-        ImGui::DragFloat3("camera", &camera_degree_.x,0.01f);
+        ImGui::DragFloat3("model position", &model_position_.x,0.01f);
         ImGui::DragFloat3("camera pos", &camera_position_.x,0.01f);
+        float distance =glm::distance(model_position_, camera_position_);
+        if(ImGui::SliderFloat("distance to model", &distance,0.01f,200.f,"%.2f",ImGuiSliderFlags_Logarithmic)){
+            auto dir = glm::normalize(camera_position_ - model_position_);
+            auto newPos = distance * dir + model_position_;
+            camera_position_ = newPos;
+        }
+        ImGui::DragFloat3("model rotation", &model_rotation_.x,3.1415926f / 180.f);
+        ImGui::Checkbox("auto rotate", &auto_rotate_model_);
+        
         ImGui::End();
 
         ImGui::EndFrame();
@@ -2148,7 +2170,11 @@ class HelloTriangleApp{
 
 
     glm::vec3 camera_degree_{};
-    glm::vec3 camera_position_{};
+    glm::vec3 camera_position_{1,1,1};
+    
+    glm::vec3 model_position_{};
+    glm::vec3 model_rotation_{};
+    bool auto_rotate_model_{true};
 
 
     bool framebuffer_resized_ = false;

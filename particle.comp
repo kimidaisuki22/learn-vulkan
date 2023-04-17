@@ -1,0 +1,29 @@
+#version 450
+
+struct Particle {
+    vec2 position;
+    vec2 velocity;
+    vec4 color;
+};
+
+layout (binding = 0) uniform Parameter{
+    float detal_time;
+}ubo;
+
+
+layout (std140, binding = 1) readonly buffer SSBO_in{
+    Particle particles_in[];
+};
+
+layout (std140, binding = 2) buffer SSBO_out{
+    Particle particles_out[];
+};
+
+layout (local_size_x = 1024,local_size_y = 1, local_size_z = 1) in;
+
+void main(){
+    uint index =  gl_GlobalInvocationID.x;
+    particles_out[index].velocity = particles_in[index].velocity;
+    particles_out[index].position = particles_out[index].velocity;
+    particles_out[index].color = particles_in[index].color;
+}

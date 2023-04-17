@@ -11,34 +11,76 @@ include(CTest)
 enable_testing()
 
 find_package(Vulkan REQUIRED)
-find_package(fmt REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(OpenMesh CONFIG REQUIRED)
 
 add_library(tiny-vulkan tiny-vulkan.cpp)
 target_include_directories(tiny-vulkan PUBLIC .)
 
 
-set(IMGUI_DIR imgui)
-include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends)
-add_library(imgui  ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp ${IMGUI_DIR}/imgui.cpp ${IMGUI_DIR}/imgui_draw.cpp ${IMGUI_DIR}/imgui_demo.cpp ${IMGUI_DIR}/imgui_tables.cpp ${IMGUI_DIR}/imgui_widgets.cpp)
- 
-target_compile_definitions(imgui PUBLIC -DImTextureID=ImU64)
-target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
+# target_compile_definitions(imgui PUBLIC -DImTextureID=ImU64)
+# target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 
-add_executable(draw-triangle draw-triangle.cpp lib-impl.cpp imgui_main.cpp)
+add_executable(draw-triangle draw-triangle.cpp objloader.cpp stb.cpp imLogger.cpp history.cpp OMesh.cpp stopwatch.cpp im_table.cpp)
 
 
 
 add_subdirectory(env-setup)
 
-
-target_link_libraries(tiny-vulkan PUBLIC glfw glm Vulkan::Vulkan imgui)
+target_link_libraries(tiny-vulkan PUBLIC glfw glm::glm Vulkan::Vulkan)
 
 target_link_libraries(draw-triangle PRIVATE tiny-vulkan)
 if(true) # TODO:Just use fmt when std::format is not avaliable
 target_link_libraries(draw-triangle PRIVATE fmt::fmt)
+
+target_link_libraries(draw-triangle PRIVATE spdlog::spdlog)
 endif()
 
- 
+
+target_sources(draw-triangle PRIVATE libs/ImGuiFileDialog/ImGuiFileDialog.cpp)
+target_include_directories(draw-triangle PUBLIC libs)
+
+
+target_include_directories(draw-triangle PRIVATE ${OPENMESH_INCLUDE_DIRS})
+target_link_libraries(draw-triangle PRIVATE ${OPENMESH_LIBRARIES})
+# On linux
+# target_link_libraries(draw-triangle PRIVATE OpenMeshCore OpenMeshTools)
+
+target_link_libraries(draw-triangle PRIVATE ${OPENMESH_LIBRARIES})
+
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
+target_link_libraries(draw-triangle PRIVATE unofficial::sqlite3::sqlite3)
+# use sqlite-modern-cpp
+find_path(SQLITE_MODERN_CPP_INCLUDE_DIRS "sqlite_modern_cpp.h")
+target_include_directories(draw-triangle   PRIVATE ${SQLITE_MODERN_CPP_INCLUDE_DIRS})
+find_package(imgui CONFIG REQUIRED)
+find_package(implot CONFIG REQUIRED)
+target_link_libraries(draw-triangle PRIVATE implot::implot imgui::imgui)
+
+find_package(CLI11 CONFIG REQUIRED)
+target_link_libraries(draw-triangle PRIVATE CLI11::CLI11)
+
+# find glslc to compile shaders
+find_program(GLSLC glslc)
+if(NOT GLSLC)
+    message(FATAL_ERROR "glslc not found")
+endif()
+
+# compile shaders
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv
+    COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vert.glsl -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vert.glsl
+)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv
+    COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/frag.glsl -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/frag.glsl
+)
+add_custom_target(shaders DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv)
 
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

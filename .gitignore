@@ -1,4 +1,6 @@
-build
 .cache
-.vscode
+build
+imgui/
+stb/
+tinyobjloader/
 *.spv

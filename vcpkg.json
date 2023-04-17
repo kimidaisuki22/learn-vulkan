@@ -1,0 +1,20 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+    "name": "star",
+    "version": "0.0.1",
+    "dependencies": [
+        "glfw3",
+        {
+            "name": "imgui",
+            "features":["glfw-binding","vulkan-binding"]
+        },
+        "fmt",
+        "spdlog",
+        "glm",
+        "sqlite3",
+        "openmesh",
+        "implot",
+        "cli11",
+        "sqlite-modern-cpp"
+    ]
+  }

@@ -54,8 +54,8 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan_core.h>
 
-#include <stb/stb_image.h>
-#include <tinyobjloader/tiny_obj_loader.h>
+#include <stb_image.h>
+#include <tiny_obj_loader.h>
 #include <unordered_map>
 
 #include <imgui.h>

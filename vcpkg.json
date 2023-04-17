@@ -15,6 +15,9 @@
         "openmesh",
         "implot",
         "cli11",
-        "sqlite-modern-cpp"
+        "sqlite-modern-cpp",
+        "stb",
+        "tinyobjloader",
+        "nlohmann-json"
     ]
   }

@@ -17,6 +17,8 @@ find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(OpenMesh CONFIG REQUIRED)
 
+find_package(Stb REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
 add_library(tiny-vulkan tiny-vulkan.cpp)
 target_include_directories(tiny-vulkan PUBLIC .)
 
@@ -35,6 +37,10 @@ target_link_libraries(draw-triangle PRIVATE fmt::fmt)
 
 target_link_libraries(draw-triangle PRIVATE spdlog::spdlog)
 endif()
+
+target_include_directories(draw-triangle PRIVATE ${Stb_INCLUDE_DIR})
+target_link_libraries(draw-triangle PRIVATE tinyobjloader::tinyobjloader)
+
 
 
 target_sources(draw-triangle PRIVATE libs/ImGuiFileDialog/ImGuiFileDialog.cpp)
@@ -77,7 +83,7 @@ add_custom_command(
     COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fragment.frag -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fragment.frag
 )
-add_custom_target(shaders all DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv)
+add_custom_target(shaders ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv)
 
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/font.ttf DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

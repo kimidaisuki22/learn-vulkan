@@ -27,9 +27,6 @@ target_include_directories(tiny-vulkan PUBLIC .)
 add_executable(draw-triangle draw-triangle.cpp objloader.cpp stb.cpp imLogger.cpp history.cpp OMesh.cpp stopwatch.cpp im_table.cpp)
 
 
-
-add_subdirectory(env-setup)
-
 target_link_libraries(tiny-vulkan PUBLIC glfw glm::glm Vulkan::Vulkan)
 
 target_link_libraries(draw-triangle PRIVATE tiny-vulkan)
@@ -72,16 +69,20 @@ endif()
 # compile shaders
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv
-    COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vert.glsl -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vert.glsl
+    COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vertex.vert -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vertex.vert
 )
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv
-    COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/frag.glsl -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/frag.glsl
+    COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fragment.frag -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fragment.frag
 )
-add_custom_target(shaders DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv)
+add_custom_target(shaders all DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/shaders/vert.spv ${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv)
 
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/font.ttf DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY models DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY textures DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

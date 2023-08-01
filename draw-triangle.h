@@ -8,12 +8,12 @@
 #include "glm/trigonometric.hpp"
 #include "swap_chain.h"
 #include "tiny-vulkan.h"
- 
+
 #include <cmath>
 #include <compare>
 #include <cstddef>
 #include <cstdint>
- 
+
 #include <fstream>
 #include <ios>
 #include <limits>
@@ -32,7 +32,7 @@
 #include <string_view>
 #include <stdexcept>
 #include <iostream>
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <vector>
 #include <span>
 #include <unordered_set>
@@ -125,7 +125,7 @@ struct Uniform_buffer_object{
     alignas(16) glm::mat4 view_;
     alignas(16) glm::mat4 proj_;
 };
- 
+
 const std::vector<const char*> validation_layer_name_pointers{
     "VK_LAYER_KHRONOS_validation"
 };
@@ -252,7 +252,7 @@ class HelloTriangleApp{
         vkFreeMemory(device_, index_buffer_memory_, nullptr);
         vkDestroyBuffer(device_, vertex_buffer_, nullptr);
         vkFreeMemory(device_, vertex_buffer_memory_, nullptr);
-        
+
         for(size_t i=0;i<MAX_FRAMES_IN_FLIGHT;i++){
             vkDestroyFence(device_, in_flight_fences_[i], nullptr);
             vkDestroySemaphore(device_, render_finish_semaphores_[i], nullptr);
@@ -707,7 +707,7 @@ class HelloTriangleApp{
         }
 
         vkDeviceWaitIdle(device_);
-        
+
         cleanup_swap_chain();
 
         create_swap_chain();
@@ -764,7 +764,7 @@ class HelloTriangleApp{
 
         VkPipelineVertexInputStateCreateInfo vertex_input_info{};
         vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        
+
         auto binding_description = Vertex::get_binding_description();
         auto attribute_descriptions = Vertex::get_attribute_descriptions();
 
@@ -804,7 +804,7 @@ class HelloTriangleApp{
         depth_stencil.depthTestEnable = VK_TRUE;
         depth_stencil.depthWriteEnable = VK_TRUE;
         depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
-        
+
         depth_stencil.depthBoundsTestEnable = VK_FALSE;
         depth_stencil.minDepthBounds = 0.0f;
         depth_stencil.maxDepthBounds = 1.0f;
@@ -869,7 +869,7 @@ class HelloTriangleApp{
         color_blending.logicOp =VK_LOGIC_OP_COPY;
         color_blending.attachmentCount = 1;
         color_blending.pAttachments = &color_blend_attachment;
-        
+
         // Pipeline layout
         VkPipelineLayoutCreateInfo pipeline_layout_info{};
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -907,7 +907,7 @@ class HelloTriangleApp{
         if(vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline_) != VK_SUCCESS){
             throw std::runtime_error{"failed to create graphics pipeline."};
         }
-        
+
         vkDestroyShaderModule(device_, vert_shader_module, nullptr);
         vkDestroyShaderModule(device_, frag_shader_module, nullptr);
     }
@@ -959,7 +959,7 @@ class HelloTriangleApp{
         VkAttachmentReference color_attachment_resolve_ref{};
         color_attachment_resolve_ref.attachment = 2;
         color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        
+
 
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -979,7 +979,7 @@ class HelloTriangleApp{
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
         std::array<VkAttachmentDescription, 3> attachments ={
-            color_attachment, 
+            color_attachment,
             depth_attachment,
             color_attachment_resolve,
         };
@@ -1093,7 +1093,7 @@ class HelloTriangleApp{
         vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
         vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline_);
-        
+
         VkBuffer vertex_buffers[] = {vertex_buffer_};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
@@ -1131,7 +1131,7 @@ class HelloTriangleApp{
         // record commands.
         vkResetCommandBuffer(command_buffers_[current_frame_], 0);
         record_command_buffer(command_buffers_[current_frame_], image_index);
-        
+
         // submit commands.
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1196,16 +1196,16 @@ class HelloTriangleApp{
 
     void create_vertex_buffer(){
         VkDeviceSize size =  sizeof(vertices_[0]) * vertices_.size();
-        
+
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
 
-        create_buffer(size, 
+        create_buffer(size,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             staging_buffer,staging_buffer_memory);
 
-         
+
         void * data{};
         vkMapMemory(device_, staging_buffer_memory, 0,size, 0, &data);
         memcpy(data, vertices_.data(), static_cast<size_t>(size));
@@ -1214,22 +1214,22 @@ class HelloTriangleApp{
         create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertex_buffer_, vertex_buffer_memory_);
 
         copy_buffer(staging_buffer, vertex_buffer_, size);
-        
+
         vkDestroyBuffer(device_, staging_buffer, nullptr);
         vkFreeMemory(device_, staging_buffer_memory, nullptr);
     }
     void create_index_buffer(){
         VkDeviceSize size =  sizeof(indices_[0]) *indices_.size();
-        
+
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
 
-        create_buffer(size, 
+        create_buffer(size,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             staging_buffer,staging_buffer_memory);
 
-         
+
         void * data{};
         vkMapMemory(device_, staging_buffer_memory, 0,size, 0, &data);
         memcpy(data, indices_.data(), static_cast<size_t>(size));
@@ -1238,7 +1238,7 @@ class HelloTriangleApp{
         create_buffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer_, index_buffer_memory_);
 
         copy_buffer(staging_buffer, index_buffer_, size);
-        
+
         vkDestroyBuffer(device_, staging_buffer, nullptr);
         vkFreeMemory(device_, staging_buffer_memory, nullptr);
     }
@@ -1253,7 +1253,7 @@ class HelloTriangleApp{
         }
         throw std::runtime_error{"failed to find suitable memory type."};
     }
-    
+
     void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory){
         VkBufferCreateInfo buffer_info{};
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1285,9 +1285,9 @@ class HelloTriangleApp{
         copy_region.dstOffset = 0;
         copy_region.srcOffset = 0;
         copy_region.size = size;
-        
+
         vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
-        
+
         end_single_time_commands(command_buffer);
     }
 
@@ -1311,7 +1311,7 @@ class HelloTriangleApp{
             ubo_layout_binging,
             sampler_layout_binging,
         };
-        
+
         VkDescriptorSetLayoutCreateInfo layout_info{};
         layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -1330,7 +1330,7 @@ class HelloTriangleApp{
         uniform_buffers_mapped_.resize(MAX_FRAMES_IN_FLIGHT);
 
         for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT ;i++){
-            create_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+            create_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
             , uniform_buffers_[i], uniform_buffers_memory_[i]);
 
@@ -1392,7 +1392,7 @@ class HelloTriangleApp{
             buffer_info.buffer = uniform_buffers_[i];
             buffer_info.offset = 0;
             buffer_info.range = sizeof(Uniform_buffer_object);
-            
+
             VkDescriptorImageInfo image_info{};
             image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             image_info.sampler = texture_sampler_;
@@ -1429,13 +1429,20 @@ class HelloTriangleApp{
 
         stbi_uc * pixels =stbi_load(TEXTURE_PATH.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
         if(!pixels){
-            throw std::runtime_error{"failed to load texture image."};
+            // throw std::runtime_error{"failed to load texture image."};
+            tex_height = 1024;
+            tex_width = 1024;
+            tex_channels = 4;
+            pixels = (stbi_uc*)new char[tex_height * tex_width * tex_channels];
+            for(auto i = 0; i < tex_height * tex_width * tex_channels; i++){
+                pixels[i] = rand() % 255;
+            }
         }
-        
+
         VkDeviceSize image_size = tex_height * tex_width * 4;
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
-        
+
         mip_levels_ = static_cast<uint32_t>(std::floor(std::log2(std::max(tex_width,tex_height)))) + 1;
 
         create_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
@@ -1447,7 +1454,7 @@ class HelloTriangleApp{
             vkUnmapMemory(device_, staging_buffer_memory);
         }
         stbi_image_free(pixels);
-        pixels = nullptr;        
+        pixels = nullptr;
 
         create_image(static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_width), mip_levels_, VK_SAMPLE_COUNT_1_BIT,VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |VK_IMAGE_USAGE_SAMPLED_BIT,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image_, texture_image_memory_);
 
@@ -1459,10 +1466,10 @@ class HelloTriangleApp{
 
         vkDestroyBuffer(device_, staging_buffer, nullptr);
         vkFreeMemory(device_, staging_buffer_memory, nullptr);
-        
+
         generate_mipmaps(texture_image_, VK_FORMAT_R8G8B8A8_SRGB, tex_width, tex_height, mip_levels_);
     }
-    
+
     void create_image(uint32_t width, uint32_t height,uint32_t mip_levels, VkSampleCountFlagBits num_samples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,VkImage& image, VkDeviceMemory& image_memory){
         VkImageCreateInfo image_info{};
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1499,7 +1506,7 @@ class HelloTriangleApp{
 
         vkBindImageMemory(device_, image, image_memory, 0);
     }
-    
+
     VkCommandBuffer begin_single_time_commands(){
        VkCommandBufferAllocateInfo alloc_info{};
         alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1513,7 +1520,7 @@ class HelloTriangleApp{
         VkCommandBufferBeginInfo being_info{};
         being_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         being_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        
+
         vkBeginCommandBuffer(command_buffer, &being_info);
 
         return command_buffer;
@@ -1553,8 +1560,8 @@ class HelloTriangleApp{
         VkPipelineStageFlags destination_stage;
 
         if(old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
-            barrier.srcAccessMask = 0; 
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; 
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
             source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -1580,12 +1587,12 @@ class HelloTriangleApp{
             if(has_stencil_component(format)){
                 barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
             }
-        }else 
+        }else
         {
             barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         }
 
-        
+
 
         vkCmdPipelineBarrier(command_buffer,
          source_stage, destination_stage,
@@ -1607,7 +1614,7 @@ class HelloTriangleApp{
         region.imageSubresource.mipLevel = 0;
         region.imageSubresource.baseArrayLayer = 0;
         region.imageSubresource.layerCount = 1;
-        
+
         region.imageOffset = {0, 0, 0};
         region.imageExtent = {
             width,
@@ -1636,7 +1643,7 @@ class HelloTriangleApp{
             throw std::runtime_error{"failed to create texture iamge view."};
         }
         return image_view;
-    } 
+    }
     void create_texture_image_view(){
         texture_image_view_ = create_image_view(texture_image_, VK_FORMAT_R8G8B8A8_SRGB,VK_IMAGE_ASPECT_COLOR_BIT,mip_levels_);
     }
@@ -1702,7 +1709,7 @@ class HelloTriangleApp{
         return find_supported_format(
             {
                 VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT,
-            }, 
+            },
             VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     }
     bool has_stencil_component(VkFormat format){
@@ -1716,7 +1723,111 @@ class HelloTriangleApp{
         std::string warn,err;
 
         if(!tinyobj::LoadObj(&attrib, &shapes,&materials, &warn,&err,MODEL_PATH.c_str())){
-            throw std::runtime_error{warn + err};
+            // throw std::runtime_error{warn + err};
+
+
+                struct Height_2D{
+                    Height_2D(int size){
+                        width = size;
+                        height = size;
+                        heights.resize(size);
+                        for(auto& height : heights){
+                            height.resize(size);
+                        }
+                    }
+
+                    void set_height(int x, int y, float height){
+                        heights[x][y] = height;
+                    }
+                    void to_vertices(std::vector<Vertex>& v){
+                        v.resize(width * height);
+                        for(int i = 0; i < width; i++){
+                            for(int j = 0; j < height; j++){
+                                v[i * width + j].pos_ = {i, j, heights[i][j]};
+                                v[i * width + j].color_ = {1.0f, 1.0f, 1.0f};
+                                v[i * width + j].tex_coord_ = {static_cast<float>(i) / width, static_cast<float>(j) / height};
+                            }
+                        }
+                    }
+                    void to_indices(std::vector<uint32_t>& idx){
+                         for(int i = 0; i  +1< width; i++){
+                            for(int j = 0; j+1 < height; j++){
+                                idx.push_back(i * width + j);
+                                idx.push_back(i * width + j + 1);
+                                idx.push_back((i + 1) * width + j);
+                                idx.push_back((i + 1) * width + j);
+                                idx.push_back(i * width + j + 1);
+                                idx.push_back((i + 1) * width + j + 1);
+                                {
+                                    // flip
+
+                                idx.push_back(i * width + j);
+                                idx.push_back((i + 1) * width + j);
+                                idx.push_back(i * width + j + 1);
+                                idx.push_back(i * width + j + 1);
+                                idx.push_back((i + 1) * width + j);
+                                idx.push_back((i + 1) * width + j + 1);
+                                }
+                            }
+                        }
+
+                    }
+                    int width;
+                    int height;
+
+                    std::vector<std::vector<float>> heights;
+                };
+
+            // just add a cube
+            // vertices_.resize(8);
+            // indices_.resize(36);
+
+            // vertices_[0].pos_ = {-0.5f,-0.5f,-0.5f};
+            // vertices_[1].pos_ = {0.5f,-0.5f,-0.5f};
+            // vertices_[2].pos_ = {0.5f,0.5f,-0.5f};
+            // vertices_[3].pos_ = {-0.5f,0.5f,-0.5f};
+            // vertices_[4].pos_ = {-0.5f,-0.5f,0.5f};
+            // vertices_[5].pos_ = {0.5f,-0.5f,0.5f};
+            // vertices_[6].pos_ = {0.5f,0.5f,0.5f};
+            // vertices_[7].pos_ = {-0.5f,0.5f,0.5f};
+
+            // for(int i = 0; i < 8; i++){
+            //     vertices_[i].color_ = {1.0f,1.0f,1.0f};
+            // }
+            // vertices_[0].tex_coord_ = {0.0f,0.0f};
+            // vertices_[1].tex_coord_ = {1.0f,0.0f};
+            // vertices_[2].tex_coord_ = {1.0f,1.0f};
+            // vertices_[3].tex_coord_ = {0.0f,1.0f};
+            // vertices_[4].tex_coord_ = {0.0f,0.0f};
+            // vertices_[5].tex_coord_ = {1.0f,0.0f};
+            // vertices_[6].tex_coord_ = {1.0f,1.0f};
+            // vertices_[7].tex_coord_ = {0.0f,1.0f};
+
+            // indices_ = {
+            //     0,1,2,2,3,0,
+            //     4,5,6,6,7,4,
+            //     4,5,1,1,0,4,
+            //     6,7,3,3,2,6,
+            //     5,6,2,2,1,5,
+            //     7,4,0,0,3,7
+            // };
+
+            Height_2D h{10};
+            // normal distribution
+
+            for(int i=0;i<10;i++){
+                for(int j=0;j<10;j++){
+                    h.set_height(i,j,i+j);
+                }
+            }
+            h.to_vertices(vertices_);
+            h.to_indices(indices_);
+
+            for(auto &v:vertices_){
+                v.pos_.x *= 0.1f;
+                v.pos_.y *= 0.1f;
+            }
+
         }
 
         std::unordered_map<Vertex, uint32_t> unique_vertices{};
@@ -1734,7 +1845,7 @@ class HelloTriangleApp{
                 vertex.tex_coord_ = {
                     attrib.texcoords[2 * index.texcoord_index + 0],
                     1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-                }; 
+                };
 
                 vertex.color_ = {1.0f,1.0f,1.0f};
 
@@ -1772,7 +1883,7 @@ class HelloTriangleApp{
 
         int32_t mip_width = tex_width;
         int32_t mip_height = tex_height;
- 
+
         for(uint32_t i = 1; i < mip_levels; i++){
             barrier.subresourceRange.baseMipLevel = i - 1;
             barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1780,8 +1891,8 @@ class HelloTriangleApp{
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
-            vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
-            0, nullptr, 0, nullptr, 
+            vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+            0, nullptr, 0, nullptr,
             1, &barrier);
 
             VkImageBlit blit{};
@@ -1801,8 +1912,8 @@ class HelloTriangleApp{
 
             vkCmdBlitImage(command_buffer,
              image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-             image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-             1, &blit, 
+             image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+             1, &blit,
              VK_FILTER_LINEAR);
 
              barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -1810,10 +1921,10 @@ class HelloTriangleApp{
              barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
              barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-             vkCmdPipelineBarrier(command_buffer, 
-             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 
-             0, nullptr, 
-             0, nullptr, 
+             vkCmdPipelineBarrier(command_buffer,
+             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+             0, nullptr,
+             0, nullptr,
              1, &barrier);
 
              if(mip_width > 1){
@@ -1830,10 +1941,10 @@ class HelloTriangleApp{
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-        vkCmdPipelineBarrier(command_buffer, 
-        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 
-        0, nullptr, 
-        0, nullptr, 
+        vkCmdPipelineBarrier(command_buffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+        0, nullptr,
+        0, nullptr,
         1, &barrier);
 
         end_single_time_commands(command_buffer);
@@ -1888,11 +1999,11 @@ class HelloTriangleApp{
         double delta = currentTime - lastTime;
         nbFrames++;
         if ( delta >= 1.0 ){ // If last cout was more than 1 sec ago
-          
+
 
             double fps = double(nbFrames) / delta;
 
-          
+
             auto str = std::format(" [{} FPS]",fps);
 
             glfwSetWindowTitle(pWindow, str.c_str());

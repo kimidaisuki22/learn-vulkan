@@ -2352,6 +2352,11 @@ private:
                     v[i * width + j].pos_ = {i, j, heights[i][j]};
                     // v[i * width + j].color_ = {1.0f, 1.0f, 1.0f};
                     v[i * width + j].tex_coord_ = {static_cast<float>(i) / width, static_cast<float>(j) / height};
+
+                    // calc normal
+                    if(i>0&&j>0){
+                        v[i * width + j].normal_ = glm::normalize(glm::cross(glm::vec3{0, 0, heights[i][j]} - glm::vec3{-0.01, 0, heights[i-1][j]}, glm::vec3{0, 0, heights[i][j]} - glm::vec3{0, -0.01, heights[i][j-1]}));
+                    }
                 }
             }
         }
@@ -2404,8 +2409,8 @@ private:
     for(auto &v:v){
         v.pos_.x -= 0.5 * size;
         v.pos_.y -= 0.5 * size;
-        v.pos_.x *= 0.01f;
-        v.pos_.y *= 0.01f;
+        // v.pos_.x *= 0.01f;
+        // v.pos_.y *= 0.01f;
     }
     reload_model(v,i);
   }

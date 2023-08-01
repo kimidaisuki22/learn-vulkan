@@ -30,7 +30,14 @@ void main(){
    // vec3 color  = textureLod(tex_sampler, frag_tex_coord, log2(view_pos.w - 2)).rgb;
 
      vec3 color = 0.6 * checker_board(view_pos.xy * 10) +vec3(0.3,0.3,0.3);
-     out_color =vec4(color,1.0f);
+
+    vec3 toLight =  camera_pos - view_pos.xyz;
+    vec3 lightDir = normalize(toLight);
+
+    float density = max(dot(normal, lightDir), 0.1);
+
+    out_color =vec4(color * density,1.0f);
+
      return;
     // vec3 color = vec3(1,1,1);
 

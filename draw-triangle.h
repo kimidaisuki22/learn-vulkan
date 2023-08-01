@@ -1812,20 +1812,25 @@ class HelloTriangleApp{
             //     7,4,0,0,3,7
             // };
 
-            Height_2D h{10};
+            Height_2D h{100};
             // normal distribution
 
-            for(int i=0;i<10;i++){
-                for(int j=0;j<10;j++){
-                    h.set_height(i,j,i+j);
+            for(int i=0;i<100;i++){
+                for(int j=0;j<100;j++){
+                    auto p =  glm::vec2(i,j);
+                    auto center = glm::vec2(50,50);
+                    auto d = glm::distance(p,center);
+                    h.set_height(i,j,  0.5f * (1.0f + std::cos(d * 0.1f)));
                 }
             }
             h.to_vertices(vertices_);
             h.to_indices(indices_);
 
             for(auto &v:vertices_){
-                v.pos_.x *= 0.1f;
-                v.pos_.y *= 0.1f;
+                v.pos_.x *= 0.01f;
+                v.pos_.y *= 0.01f;
+                v.pos_.x -= 0.5;
+                v.pos_.y -= 0.5;
             }
 
         }

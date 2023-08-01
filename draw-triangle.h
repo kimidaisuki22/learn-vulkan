@@ -32,8 +32,7 @@
 #include <string_view>
 #include <stdexcept>
 #include <iostream>
-#include <sys/types.h>
-#include <vcruntime_string.h>
+#include <sys/types.h> 
 #include <vector>
 #include <span>
 #include <unordered_set>
@@ -41,6 +40,7 @@
 #include <vulkan/vulkan_core.h>
 #include <set>
 #include <algorithm>
+#include <cstring>
 #include <chrono>
 
 #include <stb/stb_image.h>

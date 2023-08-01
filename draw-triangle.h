@@ -2385,13 +2385,13 @@ private:
     };
 
 
+    const int size = 1024;
+    Height_2D h{size};
 
-    Height_2D h{100};
-
-    for(int i=0;i<100;i++){
-        for(int j=0;j<100;j++){
+    for(int i=0;i<size;i++){
+        for(int j=0;j<size;j++){
             auto p =  glm::vec2(i,j);
-            auto center = glm::vec2(50,50);
+            auto center = glm::vec2(size/2,size/2);
             auto d = glm::distance(p,center);
             h.set_height(i,j,  0.5f * (1.0f + std::cos(d * 0.1f)));
         }
@@ -2402,10 +2402,10 @@ private:
     h.to_indices(i);
 
     for(auto &v:v){
+        v.pos_.x -= 0.5 * size;
+        v.pos_.y -= 0.5 * size;
         v.pos_.x *= 0.01f;
         v.pos_.y *= 0.01f;
-        v.pos_.x -= 0.5;
-        v.pos_.y -= 0.5;
     }
     reload_model(v,i);
   }

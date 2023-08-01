@@ -2331,6 +2331,84 @@ private:
     logger.add(std::format("ver count: {}\n", vertices_.size()));
     logger.add(std::format("idx count: {}\n", indices_.size()));
   }
+  void mesh_generate_function(){
+    struct Height_2D{
+        Height_2D(int size){
+            width = size;
+            height = size;
+            heights.resize(size);
+            for(auto& height : heights){
+                height.resize(size);
+            }
+        }
+
+        void set_height(int x, int y, float height){
+            heights[x][y] = height;
+        }
+        void to_vertices(std::vector<Vertex>& v){
+            v.resize(width * height);
+            for(int i = 0; i < width; i++){
+                for(int j = 0; j < height; j++){
+                    v[i * width + j].pos_ = {i, j, heights[i][j]};
+                    // v[i * width + j].color_ = {1.0f, 1.0f, 1.0f};
+                    v[i * width + j].tex_coord_ = {static_cast<float>(i) / width, static_cast<float>(j) / height};
+                }
+            }
+        }
+        void to_indices(std::vector<uint32_t>& idx){
+                for(int i = 0; i  +1< width; i++){
+                for(int j = 0; j+1 < height; j++){
+                    idx.push_back(i * width + j);
+                    idx.push_back(i * width + j + 1);
+                    idx.push_back((i + 1) * width + j);
+                    idx.push_back((i + 1) * width + j);
+                    idx.push_back(i * width + j + 1);
+                    idx.push_back((i + 1) * width + j + 1);
+                    {
+                        // flip
+
+                    idx.push_back(i * width + j);
+                    idx.push_back((i + 1) * width + j);
+                    idx.push_back(i * width + j + 1);
+                    idx.push_back(i * width + j + 1);
+                    idx.push_back((i + 1) * width + j);
+                    idx.push_back((i + 1) * width + j + 1);
+                    }
+                }
+            }
+
+        }
+        int width;
+        int height;
+
+        std::vector<std::vector<float>> heights;
+    };
+
+
+
+    Height_2D h{100};
+
+    for(int i=0;i<100;i++){
+        for(int j=0;j<100;j++){
+            auto p =  glm::vec2(i,j);
+            auto center = glm::vec2(50,50);
+            auto d = glm::distance(p,center);
+            h.set_height(i,j,  0.5f * (1.0f + std::cos(d * 0.1f)));
+        }
+    }
+    std::vector<Vertex> v;
+    std::vector<uint32_t> i;
+    h.to_vertices(v);
+    h.to_indices(i);
+
+    for(auto &v:v){
+        v.pos_.x *= 0.01f;
+        v.pos_.y *= 0.01f;
+        v.pos_.x -= 0.5;
+        v.pos_.y -= 0.5;
+    }
+    reload_model(v,i);
+  }
 
   void reload_model(std::vector<Vertex> v, std::vector<uint32_t> i) {
     load_model(v, i);
@@ -2609,6 +2687,10 @@ private:
         history_.insert("load_dir", dir + "/");
       }
       instance->Close();
+    }
+
+    if(ImGui::Button("function mesh")){
+        tasks_.push([this] { mesh_generate_function(); });
     }
 
     if (ImGui::Button("Fix it!")) {

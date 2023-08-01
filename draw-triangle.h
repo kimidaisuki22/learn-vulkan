@@ -2504,7 +2504,9 @@ private:
     // literal you need to write a double backslash \\ !
     // io.Fonts->AddFontDefault();
     auto &io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF("font.ttf", 18.0f);
+    float x, y;
+    glfwGetWindowContentScale(window_, &x ,&y);
+    io.Fonts->AddFontFromFileTTF("font.ttf", 18.0f * x);
     // io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
     // io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
     // io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);

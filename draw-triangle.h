@@ -1384,7 +1384,8 @@ private:
     render_pass_info.renderArea.extent = swap_chain_extent_;
 
     std::array<VkClearValue, 2> clear_values{};
-    clear_values[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    const float gray = 0.2f;
+    clear_values[0].color = {{gray, gray, gray, 1.0f}};
     clear_values[1].depthStencil = {1.0f, 0};
     render_pass_info.clearValueCount =
         static_cast<uint32_t>(clear_values.size());
@@ -2409,8 +2410,8 @@ private:
     for(auto &v:v){
         v.pos_.x -= 0.5 * size;
         v.pos_.y -= 0.5 * size;
-        // v.pos_.x *= 0.01f;
-        // v.pos_.y *= 0.01f;
+        v.pos_.x *= 0.01f;
+        v.pos_.y *= 0.01f;
     }
     reload_model(v,i);
   }
@@ -2677,7 +2678,8 @@ private:
     ImGui::NewFrame();
     ImGui::Begin("const char *name");
     if (ImGui::Button("Load New Model")) {
-      auto start_dir = history_.query("load_dir").value_or(".");
+      // auto start_dir = history_.query("load_dir").value_or(".");
+      auto start_dir = ".";
       ImGuiFileDialog::Instance()->OpenDialog("Load Model", "Choose Model",
                                               ".obj,.stl", start_dir);
     }

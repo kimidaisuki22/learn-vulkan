@@ -25,6 +25,38 @@ vec3 checker_board(vec2 uv){
     vec3(1,1,1) :
     vec3(0.5,0.5,0.5);
 }
+// 0 - 360
+vec3 hue_to_rgb(float hue){
+
+    float saturation = 0.4f;
+    float lightness = 0.5f;
+
+    float chroma = (1.0f - abs(2.0f * lightness - 1.0f)) * saturation;
+    float x = chroma * (1.0f - abs(mod(hue / 60.0f, 2.0f) - 1.0f));
+    float m = lightness - chroma / 2.0f;
+
+    vec3 color2 = vec3(0.0f);
+
+    if (hue < 60.0f) {
+        color2 = vec3(chroma, x, 0.0f);
+    } else if (hue < 120.0f) {
+        color2 = vec3(x, chroma, 0.0f);
+    } else if (hue < 180.0f) {
+        color2 = vec3(0.0f, chroma, x);
+    } else if (hue < 240.0f) {
+        color2 = vec3(0.0f, x, chroma);
+    } else if (hue < 300.0f) {
+        color2 = vec3(x, 0.0f, chroma);
+    } else {
+        color2 = vec3(chroma, 0.0f, x);
+    }
+    return color2 + m;
+}
+
+// 0 - 1  blue to red
+vec3 heat_map(float heat){
+    return vec3(heat,0,1-heat);
+}
 
 void main(){
    // vec3 color  = textureLod(tex_sampler, frag_tex_coord, log2(view_pos.w - 2)).rgb;
@@ -34,7 +66,21 @@ void main(){
     vec3 toLight =  camera_pos - view_pos.xyz;
     vec3 lightDir = normalize(toLight);
 
-    float density = max(dot(normal, lightDir), 0.1);
+    float density = max(dot(normal, lightDir), 0);
+
+    // out_color = vec4(heat_map(density) *0.7f ,1.0f);
+    out_color = vec4(vec3(density),1.0f);
+
+     return;
+
+    if(density<0.1){
+        out_color = vec4(0.7f,0.7f,0,1); // - vec4(color, 0);
+        return;
+    }
+    if(density>0.99){
+        out_color = vec4(0,0,0.9,1); // - vec4(color, 0);
+        return;
+    }
 
     out_color =vec4(color * density,1.0f);
 

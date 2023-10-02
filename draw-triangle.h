@@ -15,6 +15,7 @@
 #include "swap_chain.h"
 #include "tiny-vulkan.h"
 
+#include <fmt/format.h>
 #include <cmath>
 #include <compare>
 #include <cstddef>
@@ -480,7 +481,7 @@ private:
     }
 #ifdef __APPLE__
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-#endif
+    #endif
 
     return extensions;
   }
@@ -534,7 +535,7 @@ private:
 
     {
       for (int i{}; i < extensions.size(); i++) {
-        std::cout << std::format("extension {}: {}\n", i, extensions[i]);
+        std::cout << fmt::format("extension {}: {}\n", i, extensions[i]);
       }
     }
   }
@@ -548,7 +549,7 @@ private:
                                            properties.data());
 
     for (auto property : properties) {
-      std::cout << std::format("property name : {}, version: {}\n",
+      std::cout << fmt::format("property name : {}, version: {}\n",
                                property.extensionName, property.specVersion);
     }
   }
@@ -2257,7 +2258,7 @@ private:
     std::vector<tinyobj::material_t> materials;
     std::string warn, err;
     history_.add(path.string());
-    logger.add(std::format("load model from {}\n", path.string()));
+    logger.add(fmt::format("load model from {}\n", path.string()));
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
                           path.string().c_str())) {
       throw std::runtime_error{warn + err};
@@ -2301,8 +2302,8 @@ private:
     } else {
       throw std::runtime_error{"unsupported file."};
     }
-    logger.add(std::format("ver count: {}\n", vertices_.size()));
-    logger.add(std::format("idx count: {}\n", indices_.size()));
+    logger.add(fmt::format("ver count: {}\n", vertices_.size()));
+    logger.add(fmt::format("idx count: {}\n", indices_.size()));
   }
   void clean_loaded_memory() {
     vertices_.clear();
@@ -2329,8 +2330,8 @@ private:
     vertices_ = v;
     indices_ = i;
     logger.add("load model from mem.");
-    logger.add(std::format("ver count: {}\n", vertices_.size()));
-    logger.add(std::format("idx count: {}\n", indices_.size()));
+    logger.add(fmt::format("ver count: {}\n", vertices_.size()));
+    logger.add(fmt::format("idx count: {}\n", indices_.size()));
   }
   void mesh_generate_function(){
     struct Height_2D{
@@ -2775,7 +2776,7 @@ private:
                        std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
-      throw std::runtime_error{std::format("can't open file {}", filename)};
+      throw std::runtime_error{fmt::format("can't open file {}", filename)};
     }
     size_t total_size = file.tellg();
     std::vector<char> buffer(total_size);
@@ -2800,7 +2801,7 @@ private:
 
       double fps = double(nbFrames) / delta;
 
-      auto str = std::format(" [{} FPS]", fps);
+      auto str = fmt::format(" [{} FPS]", fps);
 
       glfwSetWindowTitle(pWindow, str.c_str());
 

@@ -32,11 +32,9 @@ add_executable(draw-triangle draw-triangle.cpp objloader.cpp stb.cpp imLogger.cp
 target_link_libraries(tiny-vulkan PUBLIC glfw glm::glm Vulkan::Vulkan)
 
 target_link_libraries(draw-triangle PRIVATE tiny-vulkan)
-if(true) # TODO:Just use fmt when std::format is not avaliable
 target_link_libraries(draw-triangle PRIVATE fmt::fmt)
 
 target_link_libraries(draw-triangle PRIVATE spdlog::spdlog)
-endif()
 
 target_include_directories(draw-triangle PRIVATE ${Stb_INCLUDE_DIR})
 target_link_libraries(draw-triangle PRIVATE tinyobjloader::tinyobjloader)

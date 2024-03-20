@@ -2683,7 +2683,7 @@ private:
       // auto start_dir = history_.query("load_dir").value_or(".");
       auto start_dir = ".";
       ImGuiFileDialog::Instance()->OpenDialog("Load Model", "Choose Model",
-                                              ".obj,.stl", start_dir);
+                                              ".obj,.stl");
     }
     if (ImGuiFileDialog::Instance()->Display("Load Model")) {
 

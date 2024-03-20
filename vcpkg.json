@@ -18,6 +18,9 @@
         "sqlite-modern-cpp",
         "stb",
         "tinyobjloader",
-        "nlohmann-json"
+        "nlohmann-json",
+        "glslang",
+        "vulkan-tools",
+        "vulkan-headers"
     ]
   }

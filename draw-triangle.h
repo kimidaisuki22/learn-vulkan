@@ -52,8 +52,9 @@
 #include <sys/types.h>
 #include <unordered_set>
 #include <vector>
-#include <vulkan/vk_enum_string_helper.h>
+#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_to_string.hpp>
 
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
@@ -528,8 +529,8 @@ private:
 
     if (auto result = vkCreateInstance(&create_info, nullptr, &instance_);
         result != VK_SUCCESS) {
-      auto s = string_VkResult(result);
-      std::cout << s << "\n";
+      // auto s = string_VkResult(result);
+      // std::cout << s << "\n";
       throw std::runtime_error{"failed to create vulkan instance."};
     }
 
@@ -2606,10 +2607,10 @@ private:
       VkResult err;
       auto command_buffer = begin_single_time_commands();
 
-      ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+      // ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
 
       end_single_time_commands(command_buffer);
-      ImGui_ImplVulkan_DestroyFontUploadObjects();
+      // ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
   }
   void setup_camera() {

@@ -48,7 +48,7 @@ target_include_directories(draw-triangle PUBLIC libs)
 target_include_directories(draw-triangle PRIVATE ${OPENMESH_INCLUDE_DIRS})
 target_link_libraries(draw-triangle PRIVATE ${OPENMESH_LIBRARIES})
 # On linux
-# target_link_libraries(draw-triangle PRIVATE OpenMeshCore OpenMeshTools)
+target_link_libraries(draw-triangle PRIVATE OpenMeshCore OpenMeshTools)
 
 target_link_libraries(draw-triangle PRIVATE ${OPENMESH_LIBRARIES})
 

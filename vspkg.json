@@ -1,5 +1,0 @@
-implot
-sqlite3
-openmesh
-imgui[glfw-binding]
-imgui[vulkan-binding]

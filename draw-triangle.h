@@ -2650,7 +2650,7 @@ private:
     init_info.Allocator = nullptr;
     init_info.CheckVkResultFn = nullptr;
 
-    ImGui_ImplVulkan_Init(&init_info, render_pass_);
+    ImGui_ImplVulkan_Init(&init_info);
 
     setup_imgui_font();
   }
